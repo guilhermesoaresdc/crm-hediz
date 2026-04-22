@@ -33,7 +33,9 @@ export async function sendInngestEvent<K extends keyof Events>(
     return;
   }
   try {
-    await inngest.send({ name, data });
+    // Cast necessário porque o TS não consegue estreitar a discriminated union
+    // com generic K — o send quer literal exato.
+    await inngest.send({ name, data } as Parameters<typeof inngest.send>[0]);
   } catch (err) {
     console.error(`[inngest] falha ao enviar ${String(name)}:`, err);
   }
