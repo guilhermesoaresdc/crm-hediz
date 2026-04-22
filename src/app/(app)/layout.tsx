@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { LogoutButton } from "./_components/logout-button";
-import { NavLinks } from "./_components/nav-links";
-import { NotificationBell } from "./_components/notification-bell";
+import { Sidebar } from "./_components/sidebar";
+import { Header } from "./_components/header";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createSupabaseServerClient();
@@ -14,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profile } = await supabase
     .from("usuarios")
-    .select("id, nome, role, imobiliaria:imobiliarias(nome, logo_url)")
+    .select("id, nome, email, role, imobiliaria:imobiliarias(nome, logo_url)")
     .eq("id", user.id)
     .single();
 
@@ -26,23 +24,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : imobiliariaRaw) as { nome?: string; logo_url?: string | null } | null | undefined;
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-64 border-r bg-card flex flex-col">
-        <div className="p-4 border-b">
-          <Link href="/dashboard" className="block">
-            <div className="font-semibold">{imobiliaria?.nome ?? "CRM Hédiz"}</div>
-            <div className="text-xs text-muted-foreground">{profile.nome} · {profile.role}</div>
-          </Link>
-        </div>
-        <NavLinks role={profile.role as string} />
-        <div className="mt-auto p-4 border-t">
-          <LogoutButton />
-        </div>
-      </aside>
+    <div className="h-screen flex bg-background text-foreground overflow-hidden">
+      <Sidebar
+        role={profile.role as string}
+        imobiliariaNome={imobiliaria?.nome ?? "Hédiz"}
+        userName={profile.nome}
+        userRole={profile.role as string}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 border-b bg-card flex items-center justify-end px-4 gap-2 flex-shrink-0">
-          <NotificationBell />
-        </header>
+        <Header
+          nome={profile.nome}
+          email={profile.email}
+          role={profile.role as string}
+        />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
