@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { sendInngestEvent } from "@/lib/inngest/client";
 
 export const bolsaoRouter = createTRPCRouter({
   disponiveis: protectedProcedure.query(async ({ ctx }) => {
@@ -56,6 +57,19 @@ export const bolsaoRouter = createTRPCRouter({
               : "Não foi possível pegar o lead";
         throw new TRPCError({ code: "BAD_REQUEST", message: msg });
       }
+
+      // Reagenda verificação de timeout
+      const { data: config2 } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("bolsao_timeout_minutos")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      await sendInngestEvent("lead/atribuido", {
+        lead_id: input.lead_id,
+        corretor_id: ctx.user.id,
+        imobiliaria_id: ctx.profile.imobiliaria_id,
+        timeout_minutos: config2?.bolsao_timeout_minutos ?? 5,
+      });
 
       return result;
     }),

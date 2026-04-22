@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, adminProcedure, managerProcedure, protectedProcedure } from "../trpc";
+import { createTRPCRouter, adminProcedure, managerProcedure } from "../trpc";
+import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 export const usuarioRouter = createTRPCRouter({
   listar: managerProcedure
@@ -27,6 +28,94 @@ export const usuarioRouter = createTRPCRouter({
       const { data, error } = await q.order("nome");
       if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       return data;
+    }),
+
+  convidar: adminProcedure
+    .input(
+      z.object({
+        nome: z.string().min(2),
+        email: z.string().email(),
+        role: z.enum(["gerente", "corretor", "financeiro"]).default("corretor"),
+        equipe_id: z.string().uuid().nullable().optional(),
+        telefone: z.string().optional(),
+        creci: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const svc = createSupabaseServiceClient();
+
+      // Checa se email já existe
+      const { data: existente } = await svc
+        .from("usuarios")
+        .select("id")
+        .eq("email", input.email)
+        .maybeSingle();
+      if (existente) {
+        throw new TRPCError({ code: "CONFLICT", message: "Esse email já tem conta" });
+      }
+
+      // Senha temporária: admin passa pro corretor (depois ele troca)
+      const senhaTemp =
+        Math.random().toString(36).slice(2, 10) +
+        Math.random().toString(36).slice(2, 6).toUpperCase() +
+        "!";
+
+      const { data: authData, error: authErr } = await svc.auth.admin.createUser({
+        email: input.email,
+        password: senhaTemp,
+        email_confirm: true,
+      });
+      if (authErr || !authData.user) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: authErr?.message ?? "Falha ao criar usuário",
+        });
+      }
+
+      const { error: usrErr } = await svc.from("usuarios").insert({
+        id: authData.user.id,
+        imobiliaria_id: ctx.profile.imobiliaria_id,
+        equipe_id: input.equipe_id ?? null,
+        nome: input.nome,
+        email: input.email,
+        telefone: input.telefone,
+        creci: input.creci,
+        role: input.role,
+      });
+      if (usrErr) {
+        await svc.auth.admin.deleteUser(authData.user.id);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: usrErr.message });
+      }
+
+      return {
+        ok: true,
+        user_id: authData.user.id,
+        senha_temporaria: senhaTemp,
+      };
+    }),
+
+  desativar: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { error } = await ctx.supabase
+        .from("usuarios")
+        .update({ ativo: false })
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { ok: true };
+    }),
+
+  reativar: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { error } = await ctx.supabase
+        .from("usuarios")
+        .update({ ativo: true })
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { ok: true };
     }),
 
   atualizar: adminProcedure

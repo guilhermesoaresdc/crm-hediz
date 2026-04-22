@@ -108,13 +108,23 @@ npm run dev
 - Persiste conversas e mensagens, marca `primeira_resposta_em`
 - `WhatsAppCloudAPI` com `sendTemplate` e `sendText`
 
-## Jobs agendados (a integrar com Inngest/Cron)
+## Jobs agendados (Inngest)
 
-Endpoints prontos pra serem chamados por worker externo:
+Endpoint Inngest em `/api/inngest` serve as seguintes funções:
 
-- `POST /api/leads/timeout-bolsao` — invocado 5min após atribuição pra verificar se deve mover pro bolsão
-- Sync Meta (ads/custos) — queries já prontas em `lib/integrations/meta-graph.ts`, falta o worker
-- Retry CAPI — filtrar `vendas WHERE enviado_capi = false` e reenviar
+- **`verificar-timeout-bolsao`** — disparada pelo evento `lead/atribuido`, dorme pelo tempo configurado em `bolsao_timeout_minutos` e, se o lead não foi respondido, chama `mover_para_bolsao` no Supabase
+- **`capi-purchase-retry`** — disparada pelo evento `venda/registrada`, garante envio do Purchase pra Meta CAPI com retry automático (3 tentativas)
+
+**Setup Inngest:**
+1. Criar conta grátis em https://inngest.com
+2. Criar app no dashboard, copiar `Event Key` e `Signing Key`
+3. Setar no Vercel: `INNGEST_EVENT_KEY` e `INNGEST_SIGNING_KEY`
+4. No dashboard Inngest, adicionar o app apontando pra `https://seu-dominio.com/api/inngest`
+
+Enquanto as envs não estão setadas, o código roda em modo no-op (loga os eventos no console, nada executa em background).
+
+Outros endpoints pra integrações futuras:
+- Sync Meta (ads/custos) — queries já prontas em `lib/integrations/meta-graph.ts`, falta criar a função Inngest agendada (cron diário)
 
 ## O que está stub / pendente
 

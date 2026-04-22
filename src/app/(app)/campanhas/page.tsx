@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import type { inferRouterOutputs } from "@trpc/server";
 import { ChevronDown, ChevronRight, Megaphone, Users, TrendingUp, Target, Archive, DollarSign, ShoppingCart, Receipt } from "lucide-react";
 import { api } from "@/lib/trpc/client";
+import type { AppRouter } from "@/server/routers/_app";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
+
+type HierarquiaOutput = inferRouterOutputs<AppRouter>["atribuicao"]["hierarquia"];
+type CampanhaNode = HierarquiaOutput["hierarquia"][number];
+type ConjuntoNode = CampanhaNode["filhos"][number];
 
 type Periodo = "7d" | "15d" | "30d" | "90d" | "6m" | "custom";
 type Tipo = "todos" | "formulario" | "site" | "importado";
@@ -212,10 +218,6 @@ export default function RastreamentoCampanhasPage() {
     </div>
   );
 }
-
-type CampanhaNode = NonNullable<ReturnType<typeof api.atribuicao.hierarquia.useQuery>["data"]>["hierarquia"][number];
-type ConjuntoNode = CampanhaNode["filhos"][number];
-type AnuncioNode = ConjuntoNode["filhos"][number];
 
 function CampanhaRow({ campanha }: { campanha: CampanhaNode }) {
   const [open, setOpen] = useState(false);

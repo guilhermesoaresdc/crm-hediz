@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { sanitizePhone } from "@/lib/utils";
+import { sendInngestEvent } from "@/lib/inngest/client";
 
 const leadStatus = z.enum([
   "novo",
@@ -131,6 +132,21 @@ export const leadRouter = createTRPCRouter({
         payload: { origem: input.origem },
       });
 
+      // Agenda verificação de timeout do bolsão via Inngest
+      if (proximoId) {
+        const { data: config } = await ctx.supabase
+          .from("configuracoes_imobiliaria")
+          .select("bolsao_timeout_minutos")
+          .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+          .single();
+        await sendInngestEvent("lead/atribuido", {
+          lead_id: lead.id,
+          corretor_id: proximoId as string,
+          imobiliaria_id: ctx.profile.imobiliaria_id,
+          timeout_minutos: config?.bolsao_timeout_minutos ?? 5,
+        });
+      }
+
       return { lead, atribuido_para: proximoId };
     }),
 
@@ -228,6 +244,18 @@ export const leadRouter = createTRPCRouter({
         tipo: "atribuido",
         usuario_id: ctx.user.id,
         payload: { via: "reatribuicao_manual", por: ctx.user.id },
+      });
+
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("bolsao_timeout_minutos")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      await sendInngestEvent("lead/atribuido", {
+        lead_id: input.id,
+        corretor_id: input.corretor_id,
+        imobiliaria_id: ctx.profile.imobiliaria_id,
+        timeout_minutos: config?.bolsao_timeout_minutos ?? 5,
       });
 
       return { ok: true };
