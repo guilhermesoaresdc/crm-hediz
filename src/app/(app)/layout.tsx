@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./_components/logout-button";
 import { NavLinks } from "./_components/nav-links";
+import { NotificationBell } from "./_components/notification-bell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createSupabaseServerClient();
@@ -38,7 +39,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <LogoutButton />
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">{children}</main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="h-14 border-b bg-card flex items-center justify-end px-4 gap-2 flex-shrink-0">
+          <NotificationBell />
+        </header>
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
     </div>
   );
 }

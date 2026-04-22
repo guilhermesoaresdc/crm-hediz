@@ -11,6 +11,7 @@ import {
   Settings,
   DollarSign,
   UsersRound,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const items: NavItem[] = [
   { href: "/leads", label: "Leads", icon: <Users className="h-4 w-4" /> },
   { href: "/pipeline", label: "Pipeline", icon: <KanbanSquare className="h-4 w-4" /> },
   { href: "/bolsao", label: "Bolsão", icon: <Inbox className="h-4 w-4" /> },
+  { href: "/gestao", label: "Gestão", icon: <Briefcase className="h-4 w-4" />, roles: ["super_admin", "gerente"] },
   { href: "/campanhas", label: "Rastreamento Meta", icon: <BarChart3 className="h-4 w-4" />, roles: ["super_admin", "gerente"] },
   { href: "/vendas", label: "Vendas", icon: <DollarSign className="h-4 w-4" /> },
   { href: "/equipe", label: "Equipe", icon: <UsersRound className="h-4 w-4" />, roles: ["super_admin", "gerente"] },

@@ -10,6 +10,8 @@ import { dashboardRouter } from "./dashboard";
 import { configRouter } from "./config";
 import { campanhaRouter } from "./campanha";
 import { atribuicaoRouter } from "./atribuicao";
+import { gestaoRouter } from "./gestao";
+import { notificacaoRouter } from "./notificacao";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -23,6 +25,8 @@ export const appRouter = createTRPCRouter({
   config: configRouter,
   campanha: campanhaRouter,
   atribuicao: atribuicaoRouter,
+  gestao: gestaoRouter,
+  notificacao: notificacaoRouter,
 });
 
 export type AppRouter = typeof appRouter;
