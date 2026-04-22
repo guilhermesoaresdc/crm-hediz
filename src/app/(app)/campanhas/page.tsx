@@ -1,66 +1,346 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Megaphone, Users, TrendingUp, Target, Archive, DollarSign, ShoppingCart, Receipt } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { cn, formatCurrency } from "@/lib/utils";
 
-export default function CampanhasPage() {
-  const { data, isLoading } = api.dashboard.performanceCampanhas.useQuery();
+type Periodo = "7d" | "15d" | "30d" | "90d" | "6m" | "custom";
+type Tipo = "todos" | "formulario" | "site" | "importado";
+
+const periodosLabel: Record<Periodo, string> = {
+  "7d": "7 dias",
+  "15d": "15 dias",
+  "30d": "30 dias",
+  "90d": "90 dias",
+  "6m": "6 meses",
+  custom: "Personalizado",
+};
+
+export default function RastreamentoCampanhasPage() {
+  const [periodo, setPeriodo] = useState<Periodo>("7d");
+  const [tipo, setTipo] = useState<Tipo>("todos");
+  const [equipeIds, setEquipeIds] = useState<string[]>([]);
+  const [dropdownEquipeOpen, setDropdownEquipeOpen] = useState(false);
+
+  const { data: equipes } = api.equipe.listar.useQuery();
+  const { data, isLoading } = api.atribuicao.hierarquia.useQuery({
+    preset: periodo,
+    tipo,
+    equipe_ids: equipeIds.length > 0 ? equipeIds : undefined,
+  });
+
+  const equipesSelLabel =
+    equipeIds.length === 0
+      ? "Todas as equipes"
+      : equipeIds.length === 1
+        ? equipes?.find((e) => e.id === equipeIds[0])?.nome ?? "1 equipe"
+        : `${equipeIds.length} equipes selecionadas`;
 
   return (
-    <div className="p-8 space-y-4">
-      <h1 className="text-3xl font-bold">Campanhas</h1>
-      <p className="text-muted-foreground text-sm">
-        ROAS real por campanha — custo de mídia + fee agência vs faturamento.
-      </p>
+    <div className="p-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Rastreamento Meta</h1>
+        <p className="text-muted-foreground text-sm">
+          Atribuição de ponta a ponta: do anúncio até a venda, com ROAS real (inclui fee da agência).
+        </p>
+      </div>
+
+      {/* Filtros */}
+      <section className="space-y-3">
+        <div className="text-sm font-medium">Filtros</div>
+        <div className="flex flex-wrap gap-3 relative">
+          {/* Multi-select equipes */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDropdownEquipeOpen((x) => !x)}
+              className="flex items-center gap-2 min-w-[220px] justify-between rounded-md border border-input bg-background px-3 h-10 text-sm hover:bg-accent"
+            >
+              <span>{equipesSelLabel}</span>
+              <ChevronDown className="h-4 w-4 opacity-60" />
+            </button>
+            {dropdownEquipeOpen && (
+              <div className="absolute z-20 mt-1 w-full min-w-[220px] rounded-md border bg-card shadow-lg p-2 space-y-1">
+                <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded cursor-pointer text-sm">
+                  <input
+                    type="checkbox"
+                    checked={equipeIds.length === 0}
+                    onChange={() => setEquipeIds([])}
+                  />
+                  Todas
+                </label>
+                {equipes?.map((e) => (
+                  <label
+                    key={e.id}
+                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded cursor-pointer text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={equipeIds.includes(e.id)}
+                      onChange={(ev) => {
+                        setEquipeIds((curr) =>
+                          ev.target.checked ? [...curr, e.id] : curr.filter((id) => id !== e.id),
+                        );
+                      }}
+                    />
+                    {e.nome}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tipo origem */}
+          <select
+            className="rounded-md border border-input bg-background px-3 h-10 text-sm min-w-[180px]"
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as Tipo)}
+          >
+            <option value="todos">Todos os tipos</option>
+            <option value="formulario">Formulário (Lead Ads)</option>
+            <option value="site">Site / LP</option>
+            <option value="importado">Importado</option>
+          </select>
+        </div>
+
+        {/* Período */}
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(periodosLabel) as Periodo[])
+            .filter((p) => p !== "custom")
+            .map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriodo(p)}
+                className={cn(
+                  "rounded-md px-3 h-9 text-sm border transition-colors",
+                  periodo === p
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-input hover:bg-accent",
+                )}
+              >
+                {periodosLabel[p]}
+              </button>
+            ))}
+        </div>
+      </section>
+
+      {/* KPIs */}
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <Kpi icon={<Megaphone />} label="Campanhas Ativas" value={data?.kpis.campanhas_ativas ?? 0} loading={isLoading} />
+        <Kpi icon={<Users />} label="Leads gerados" value={data?.kpis.leads ?? 0} loading={isLoading} />
+        <Kpi icon={<TrendingUp />} label="Visitas" value={data?.kpis.visitas ?? 0} loading={isLoading} />
+        <Kpi
+          icon={<Target />}
+          label="Taxa de Conversão"
+          value={data?.kpis.taxa_conversao != null ? `${data.kpis.taxa_conversao.toFixed(2)}%` : "—"}
+          loading={isLoading}
+        />
+        <Kpi icon={<Archive />} label="Leads Arquivados" value={data?.kpis.arquivados ?? 0} loading={isLoading} />
+        <Kpi
+          icon={<DollarSign />}
+          label="Custo por Lead"
+          value={formatCurrency(data?.kpis.custo_por_lead)}
+          loading={isLoading}
+        />
+        <Kpi
+          icon={<ShoppingCart />}
+          label="Vendas"
+          value={data?.kpis.vendas ?? 0}
+          loading={isLoading}
+          emphasize
+        />
+        <Kpi
+          icon={<Receipt />}
+          label="Faturamento"
+          value={formatCurrency(data?.kpis.faturamento)}
+          loading={isLoading}
+          emphasize
+        />
+        <Kpi
+          icon={<TrendingUp />}
+          label="ROAS real"
+          value={data?.kpis.roas_real ? `${data.kpis.roas_real.toFixed(2)}x` : "—"}
+          loading={isLoading}
+          emphasize
+        />
+      </section>
+
+      {/* Tabela hierárquica */}
       <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <p className="text-muted-foreground">Carregando...</p>
-          ) : !data?.length ? (
-            <p className="text-muted-foreground text-center py-8">
-              Nenhuma campanha sincronizada. Conecte Meta em Configurações.
-            </p>
-          ) : (
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-xs text-muted-foreground">
-                <tr className="text-left border-b">
-                  <th className="py-2">Campanha</th>
-                  <th className="py-2 text-right">Leads</th>
-                  <th className="py-2 text-right">Vendas</th>
-                  <th className="py-2 text-right">Faturamento</th>
-                  <th className="py-2 text-right">Custo mídia</th>
-                  <th className="py-2 text-right">Fee agência</th>
-                  <th className="py-2 text-right">CPL real</th>
-                  <th className="py-2 text-right">Custo/venda</th>
-                  <th className="py-2 text-right">ROAS real</th>
+              <thead className="bg-muted/50 border-b">
+                <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  <th className="px-4 py-3 font-medium">Campanha</th>
+                  <th className="px-3 py-3 font-medium text-right">Leads</th>
+                  <th className="px-3 py-3 font-medium text-right">Visitas</th>
+                  <th className="px-3 py-3 font-medium text-right">Taxa conv</th>
+                  <th className="px-3 py-3 font-medium text-right">Arquivados</th>
+                  <th className="px-3 py-3 font-medium text-right">CPL real</th>
+                  <th className="px-3 py-3 font-medium text-right">Vendas</th>
+                  <th className="px-3 py-3 font-medium text-right">Faturamento</th>
+                  <th className="px-3 py-3 font-medium text-right">ROAS real</th>
                 </tr>
               </thead>
               <tbody>
-                {data
-                  .sort((a, b) => (b.roas_real ?? 0) - (a.roas_real ?? 0))
-                  .map((c) => (
-                    <tr key={c.id} className="border-b">
-                      <td className="py-3 font-medium max-w-[240px] truncate">{c.nome}</td>
-                      <td className="py-3 text-right">{c.leads}</td>
-                      <td className="py-3 text-right">{c.vendas}</td>
-                      <td className="py-3 text-right">{formatCurrency(c.faturamento)}</td>
-                      <td className="py-3 text-right">{formatCurrency(c.gasto_midia)}</td>
-                      <td className="py-3 text-right">{formatCurrency(c.fee_agencia)}</td>
-                      <td className="py-3 text-right">{c.cpl_real != null ? formatCurrency(c.cpl_real) : "—"}</td>
-                      <td className="py-3 text-right">
-                        {c.custo_por_venda != null ? formatCurrency(c.custo_por_venda) : "—"}
-                      </td>
-                      <td className="py-3 text-right font-bold">
-                        {c.roas_real != null ? `${c.roas_real}x` : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                      Carregando...
+                    </td>
+                  </tr>
+                ) : !data?.hierarquia?.length ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                      Nenhuma campanha com dados no período. Conecte Meta em Configurações
+                      pra sincronizar campanhas e custos automaticamente.
+                    </td>
+                  </tr>
+                ) : (
+                  data.hierarquia.map((c) => <CampanhaRow key={c.id} campanha={c} />)
+                )}
               </tbody>
             </table>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+type CampanhaNode = NonNullable<ReturnType<typeof api.atribuicao.hierarquia.useQuery>["data"]>["hierarquia"][number];
+type ConjuntoNode = CampanhaNode["filhos"][number];
+type AnuncioNode = ConjuntoNode["filhos"][number];
+
+function CampanhaRow({ campanha }: { campanha: CampanhaNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <tr className="border-b hover:bg-accent/30 cursor-pointer" onClick={() => setOpen((x) => !x)}>
+        <td className="px-4 py-3 font-medium">
+          <div className="flex items-center gap-2">
+            {open ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span>{campanha.nome}</span>
+            {campanha.status && campanha.status !== "ACTIVE" && (
+              <Badge variant="outline" className="text-xs">
+                {campanha.status}
+              </Badge>
+            )}
+          </div>
+        </td>
+        <MetricaCells m={campanha.metricas} />
+      </tr>
+      {open &&
+        campanha.filhos.map((conjunto) => (
+          <ConjuntoRow key={conjunto.id} conjunto={conjunto} />
+        ))}
+    </>
+  );
+}
+
+function ConjuntoRow({ conjunto }: { conjunto: ConjuntoNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <tr
+        className="border-b hover:bg-accent/20 cursor-pointer bg-muted/20"
+        onClick={() => setOpen((x) => !x)}
+      >
+        <td className="px-4 py-3 pl-10">
+          <div className="flex items-center gap-2">
+            {open ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span>{conjunto.nome}</span>
+            <Badge variant="secondary" className="text-xs">
+              Formulário
+            </Badge>
+          </div>
+        </td>
+        <MetricaCells m={conjunto.metricas} />
+      </tr>
+      {open &&
+        conjunto.filhos.map((ad) => (
+          <tr key={ad.id} className="border-b hover:bg-accent/10 bg-muted/40">
+            <td className="px-4 py-3 pl-16 text-muted-foreground text-sm">{ad.nome}</td>
+            <MetricaCells m={ad.metricas} />
+          </tr>
+        ))}
+    </>
+  );
+}
+
+function MetricaCells({
+  m,
+}: {
+  m: {
+    leads: number;
+    visitas: number;
+    arquivados: number;
+    vendas: number;
+    faturamento: number;
+    taxa_conversao: number;
+    custo_por_lead: number;
+    roas_real: number;
+  };
+}) {
+  return (
+    <>
+      <td className="px-3 py-3 text-right tabular-nums">{m.leads}</td>
+      <td className="px-3 py-3 text-right tabular-nums">{m.visitas}</td>
+      <td className="px-3 py-3 text-right tabular-nums">
+        {m.leads > 0 ? `${m.taxa_conversao.toFixed(2)}%` : "—"}
+      </td>
+      <td className="px-3 py-3 text-right tabular-nums">{m.arquivados}</td>
+      <td className="px-3 py-3 text-right tabular-nums">
+        {m.custo_por_lead > 0 ? formatCurrency(m.custo_por_lead) : "—"}
+      </td>
+      <td className="px-3 py-3 text-right tabular-nums font-medium">{m.vendas}</td>
+      <td className="px-3 py-3 text-right tabular-nums font-medium">
+        {m.faturamento > 0 ? formatCurrency(m.faturamento) : "—"}
+      </td>
+      <td className="px-3 py-3 text-right tabular-nums font-bold">
+        {m.roas_real > 0 ? `${m.roas_real.toFixed(2)}x` : "—"}
+      </td>
+    </>
+  );
+}
+
+function Kpi({
+  icon,
+  label,
+  value,
+  loading,
+  emphasize,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  loading?: boolean;
+  emphasize?: boolean;
+}) {
+  return (
+    <Card className={cn(emphasize && "border-primary")}>
+      <CardContent className="pt-5 pb-4">
+        <div className="flex items-start justify-between mb-2">
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className={cn("h-4 w-4", emphasize ? "text-primary" : "text-muted-foreground")}>
+            {icon}
+          </div>
+        </div>
+        <div className="text-2xl font-bold tabular-nums">{loading ? "..." : value}</div>
+      </CardContent>
+    </Card>
   );
 }
