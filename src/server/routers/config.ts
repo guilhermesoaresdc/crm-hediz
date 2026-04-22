@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, adminProcedure, protectedProcedure } from "../trpc";
 import { testarCredenciaisMeta, sincronizarCampanhasImobiliaria, sincronizarCustosImobiliaria } from "@/lib/integrations/meta-graph";
+import { listarAssets, listarPixelsDoAdAccount } from "@/lib/integrations/meta-oauth";
 import { sendInngestEvent } from "@/lib/inngest/client";
 
 export const configRouter = createTRPCRouter({
@@ -61,6 +62,96 @@ export const configRouter = createTRPCRouter({
         .update({ ...input, meta_conectado_em: new Date().toISOString() })
         .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
       if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { ok: true };
+    }),
+
+  /**
+   * Lista businesses, ad accounts e pages do user autenticado via OAuth.
+   * Chamado pela /integracoes/selecionar após callback do OAuth.
+   */
+  listarAssetsMeta: adminProcedure.query(async ({ ctx }) => {
+    const { data: config } = await ctx.supabase
+      .from("configuracoes_imobiliaria")
+      .select("meta_access_token")
+      .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+      .single();
+
+    if (!config?.meta_access_token) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Token Meta não disponível. Refaça o login com Facebook.",
+      });
+    }
+
+    const assets = await listarAssets(config.meta_access_token);
+    return assets;
+  }),
+
+  listarPixelsMeta: adminProcedure
+    .input(z.object({ ad_account_id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta ausente" });
+      }
+      return listarPixelsDoAdAccount(config.meta_access_token, input.ad_account_id);
+    }),
+
+  /**
+   * Finaliza a conexão Meta salvando os IDs que o user selecionou no wizard.
+   * Trigger síncrono de 1ª sincronização.
+   */
+  finalizarConexaoMeta: adminProcedure
+    .input(
+      z.object({
+        meta_business_id: z.string(),
+        meta_ad_account_id: z.string(),
+        meta_page_id: z.string().optional(),
+        meta_pixel_id: z.string().optional(),
+        meta_capi_token: z.string().optional(),
+        page_access_token: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updates: Record<string, unknown> = {
+        meta_business_id: input.meta_business_id,
+        meta_ad_account_id: input.meta_ad_account_id,
+        meta_page_id: input.meta_page_id ?? null,
+        meta_pixel_id: input.meta_pixel_id ?? null,
+        meta_conectado_em: new Date().toISOString(),
+      };
+
+      // Se user colou CAPI token separado, usa ele; senão reusa user token
+      if (input.meta_capi_token) {
+        updates.meta_capi_token = input.meta_capi_token;
+      } else {
+        const { data: current } = await ctx.supabase
+          .from("configuracoes_imobiliaria")
+          .select("meta_access_token")
+          .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+          .single();
+        if (current?.meta_access_token && !input.meta_capi_token) {
+          updates.meta_capi_token = current.meta_access_token;
+        }
+      }
+
+      const { error } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .update(updates)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
+
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+
+      // Dispara 1ª sync em background (best-effort)
+      sendInngestEvent("meta/sincronizar", {
+        imobiliaria_id: ctx.profile.imobiliaria_id,
+        tipo: "ambos",
+      }).catch(() => {});
+
       return { ok: true };
     }),
 
@@ -145,7 +236,8 @@ export const configRouter = createTRPCRouter({
       .order("iniciado_em", { ascending: false })
       .limit(10);
 
-    const ultimoPorTipo: Record<string, (typeof data)[number] | undefined> = {};
+    type SyncLogRow = NonNullable<typeof data>[number];
+    const ultimoPorTipo: Record<string, SyncLogRow | undefined> = {};
     for (const log of data ?? []) {
       if (!ultimoPorTipo[log.tipo]) ultimoPorTipo[log.tipo] = log;
     }

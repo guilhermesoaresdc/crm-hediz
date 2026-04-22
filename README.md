@@ -108,6 +108,32 @@ npm run dev
 - Persiste conversas e mensagens, marca `primeira_resposta_em`
 - `WhatsAppCloudAPI` com `sendTemplate` e `sendText`
 
+## OAuth Meta (Facebook Login for Business)
+
+O CRM suporta **2 modos** de conectar Meta Ads:
+
+### Modo 1: Login com Facebook (recomendado)
+1. Criar app em https://developers.facebook.com/apps (tipo Business)
+2. Em **Facebook Login for Business** → configurar:
+   - **Valid OAuth Redirect URIs**: `https://<seu-domínio>/api/auth/meta/callback`
+3. Em **Permissions and Features** solicitar (App Review em produção):
+   - `ads_read`, `ads_management`, `leads_retrieval`
+   - `pages_show_list`, `pages_manage_ads`, `pages_manage_metadata`, `pages_read_engagement`
+   - `business_management`
+4. Copiar **App ID** e **App Secret**
+5. Setar no Vercel:
+   - `NEXT_PUBLIC_META_APP_ID=<app id>`
+   - `META_APP_SECRET=<app secret>`
+6. Redeploy → o botão "Continuar com Facebook" aparece em /integracoes
+
+Enquanto estiver em desenvolvimento (sem App Review), só usuários com papel de
+Admin / Developer / Tester no app conseguem autorizar. Em produção, App Review é
+obrigatório para essas permissões.
+
+### Modo 2: Configuração manual (fallback)
+Se o app Meta não estiver configurado, ainda dá para colar os 6 tokens diretamente.
+Útil pra onboarding inicial ou se a imobiliária já tem um System User Token.
+
 ## Jobs agendados (Inngest)
 
 Endpoint Inngest em `/api/inngest` serve as seguintes funções:

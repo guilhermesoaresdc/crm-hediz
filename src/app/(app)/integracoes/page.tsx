@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   AlertCircle,
@@ -11,6 +12,7 @@ import {
   TestTube,
   Unplug,
   ExternalLink,
+  Facebook,
 } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +24,24 @@ import { cn, formatDate } from "@/lib/utils";
 
 export default function IntegracoesPage() {
   const utils = api.useUtils();
+  const searchParams = useSearchParams();
+  const metaError = searchParams.get("meta_error");
+  const metaConectado = searchParams.get("meta") === "conectado";
+
   const { data: config } = api.config.obter.useQuery();
   const { data: syncStatus } = api.config.statusSync.useQuery(undefined, {
     refetchInterval: 10_000,
   });
+
+  // Limpa parâmetros da URL após ler
+  useEffect(() => {
+    if (metaError || metaConectado) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("meta_error");
+      url.searchParams.delete("meta");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [metaError, metaConectado]);
 
   return (
     <div className="p-8 space-y-6 max-w-5xl">
@@ -35,6 +51,19 @@ export default function IntegracoesPage() {
           Conecte Meta Ads, WhatsApp Business e sincronize campanhas.
         </p>
       </div>
+
+      {metaError && (
+        <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+          <div className="font-semibold mb-1">Falha na conexão Meta</div>
+          <div>{metaError}</div>
+        </div>
+      )}
+
+      {metaConectado && (
+        <div className="rounded-md bg-success/10 border border-success/20 p-4 text-sm text-success">
+          ✓ Meta conectado. Primeira sincronização rodando em background.
+        </div>
+      )}
 
       <MetaIntegrationCard
         config={config}
@@ -63,7 +92,8 @@ function MetaIntegrationCard({
   onChange: () => void;
 }) {
   const conectado = !!config?.meta_conectado_em;
-  const [editando, setEditando] = useState(!conectado);
+  const oauthDisponivel = !!process.env.NEXT_PUBLIC_META_APP_ID;
+  const [editando, setEditando] = useState(false);
   const [form, setForm] = useState({
     meta_business_id: "",
     meta_ad_account_id: "",
@@ -213,6 +243,67 @@ function MetaIntegrationCard({
           </>
         )}
 
+        {!conectado && !editando && (
+          <div className="space-y-3">
+            {oauthDisponivel ? (
+              <>
+                <a href="/api/auth/meta/start">
+                  <Button className="w-full h-11 bg-[#1877F2] text-white hover:bg-[#1877F2]/90">
+                    <Facebook className="h-5 w-5" />
+                    Continuar com Facebook
+                  </Button>
+                </a>
+                <div className="text-xs text-center text-muted-foreground">
+                  Você será redirecionado pro Facebook, faz login, escolhe Business/Ad
+                  Account/Page, e a gente conecta tudo.
+                </div>
+                <div className="relative my-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setEditando(true)}
+                >
+                  Configuração manual (colar tokens)
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="rounded-md bg-muted/50 p-3 text-sm">
+                  <div className="font-medium mb-1">Login com Facebook indisponível</div>
+                  <div className="text-muted-foreground text-xs">
+                    O App Meta ainda não está configurado (variável{" "}
+                    <code className="bg-muted px-1 rounded">NEXT_PUBLIC_META_APP_ID</code>).
+                    Use a configuração manual abaixo ou conclua o setup do app em{" "}
+                    <a
+                      href="https://developers.facebook.com/apps"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      developers.facebook.com/apps
+                    </a>
+                    .
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setEditando(true)}
+                >
+                  Configuração manual
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
         {editando && (
           <>
             <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
@@ -290,11 +381,9 @@ function MetaIntegrationCard({
               <Button onClick={() => conectar.mutate(form)} disabled={conectar.isPending}>
                 {conectar.isPending ? "Salvando..." : "Conectar Meta"}
               </Button>
-              {conectado && (
-                <Button variant="ghost" onClick={() => setEditando(false)}>
-                  Cancelar
-                </Button>
-              )}
+              <Button variant="ghost" onClick={() => setEditando(false)}>
+                Cancelar
+              </Button>
             </div>
           </>
         )}
