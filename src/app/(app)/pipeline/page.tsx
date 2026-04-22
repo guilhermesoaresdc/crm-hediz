@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import type { inferRouterOutputs } from "@trpc/server";
 import {
   DndContext,
   DragOverlay,
@@ -25,11 +26,15 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { api } from "@/lib/trpc/client";
+import type { AppRouter } from "@/server/routers/_app";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { LeadStatus } from "@/lib/supabase/types";
+
+type PipelineOutput = inferRouterOutputs<AppRouter>["lead"]["paraPipeline"];
+type Lead = PipelineOutput["leads"][number];
 
 type Coluna = {
   status: LeadStatus;
@@ -70,20 +75,6 @@ function corOrigemBorda(origem: string | null) {
   return "border-l-slate-300";
 }
 
-type Lead = {
-  id: string;
-  nome: string;
-  whatsapp: string;
-  status: LeadStatus;
-  origem: string | null;
-  em_bolsao: boolean;
-  created_at: string;
-  atribuido_em: string | null;
-  primeira_mensagem_em: string | null;
-  corretor: { id: string; nome: string; avatar_url: string | null } | null;
-  campanha: { id: string; nome: string } | null;
-};
-
 export default function PipelinePage() {
   const [busca, setBusca] = useState("");
   const [corretorFiltro, setCorretorFiltro] = useState<string>("");
@@ -91,69 +82,57 @@ export default function PipelinePage() {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
 
   const utils = api.useUtils();
-  const { data, isLoading } = api.lead.listar.useQuery({ page: 1, per_page: 500 });
+  const queryInput = useMemo(
+    () => ({
+      corretor_id: corretorFiltro || undefined,
+      origem: origemFiltro || undefined,
+      busca: busca || undefined,
+    }),
+    [corretorFiltro, origemFiltro, busca],
+  );
+
+  const { data, isLoading, error } = api.lead.paraPipeline.useQuery(queryInput, {
+    staleTime: 30_000,
+  });
   const { data: corretores } = api.usuario.listar.useQuery(undefined);
 
   const atualizarStatus = api.lead.atualizarStatus.useMutation({
     onMutate: async (vars) => {
-      // Optimistic update
-      await utils.lead.listar.cancel();
-      const prev = utils.lead.listar.getData({ page: 1, per_page: 500 });
+      await utils.lead.paraPipeline.cancel();
+      const prev = utils.lead.paraPipeline.getData(queryInput);
       if (prev) {
-        utils.lead.listar.setData(
-          { page: 1, per_page: 500 },
-          {
-            ...prev,
-            leads: prev.leads.map((l) =>
-              l.id === vars.id ? { ...l, status: vars.status } : l,
-            ),
-          },
-        );
+        utils.lead.paraPipeline.setData(queryInput, {
+          ...prev,
+          leads: prev.leads.map((l) =>
+            l.id === vars.id ? { ...l, status: vars.status } : l,
+          ),
+        });
       }
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) utils.lead.listar.setData({ page: 1, per_page: 500 }, ctx.prev);
+      if (ctx?.prev) utils.lead.paraPipeline.setData(queryInput, ctx.prev);
     },
-    onSettled: () => utils.lead.listar.invalidate(),
+    onSettled: () => utils.lead.paraPipeline.invalidate(),
   });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  const leadsFiltrados = useMemo(() => {
-    const list = ((data?.leads ?? []) as unknown) as Lead[];
-    return list.filter((l) => {
-      if (busca) {
-        const s = busca.toLowerCase();
-        if (
-          !l.nome.toLowerCase().includes(s) &&
-          !(l.whatsapp ?? "").includes(s) &&
-          !(l.campanha?.nome ?? "").toLowerCase().includes(s)
-        ) {
-          return false;
-        }
-      }
-      if (corretorFiltro && l.corretor?.id !== corretorFiltro) return false;
-      if (origemFiltro && l.origem !== origemFiltro) return false;
-      return true;
-    });
-  }, [data?.leads, busca, corretorFiltro, origemFiltro]);
+  const leads = data?.leads ?? [];
 
   const porStatus = useMemo(() => {
     const map: Record<string, Lead[]> = {};
     for (const col of COLUNAS) map[col.status] = [];
-    for (const l of leadsFiltrados) {
+    for (const l of leads) {
       if (map[l.status]) map[l.status].push(l);
     }
     return map;
-  }, [leadsFiltrados]);
-
-  const perdidos = leadsFiltrados.filter((l) => l.status === "perdido" || l.status === "descartado");
+  }, [leads]);
 
   function onDragStart(event: DragStartEvent) {
-    const lead = leadsFiltrados.find((l) => l.id === event.active.id);
+    const lead = leads.find((l) => l.id === event.active.id);
     if (lead) setActiveLead(lead);
   }
 
@@ -164,7 +143,7 @@ export default function PipelinePage() {
     const leadId = active.id as string;
     const novoStatus = over.id as LeadStatus;
 
-    const lead = leadsFiltrados.find((l) => l.id === leadId);
+    const lead = leads.find((l) => l.id === leadId);
     if (!lead || lead.status === novoStatus) return;
 
     // Atualiza via mutation (optimistic)
@@ -178,7 +157,7 @@ export default function PipelinePage() {
           <div>
             <h1 className="text-2xl font-bold">Pipeline</h1>
             <p className="text-sm text-muted-foreground">
-              {leadsFiltrados.length} leads ativos · {perdidos.length} perdidos/descartados ·{" "}
+              {leads.length} leads ativos ·{" "}
               <span className="text-primary">Arraste os cards pra mudar status</span>
             </p>
           </div>
@@ -228,8 +207,20 @@ export default function PipelinePage() {
       </div>
 
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 bg-muted/30">
-        {isLoading ? (
-          <p className="text-muted-foreground">Carregando...</p>
+        {error ? (
+          <div className="rounded-md border border-destructive/20 bg-destructive/5 text-destructive p-4 max-w-xl">
+            <div className="font-semibold mb-1">Falha ao carregar leads</div>
+            <div className="text-sm">{error.message}</div>
+          </div>
+        ) : isLoading ? (
+          <div className="flex gap-3 h-full">
+            {COLUNAS.map((col) => (
+              <div
+                key={col.status}
+                className="w-[300px] flex-shrink-0 bg-card rounded-lg border animate-pulse h-full"
+              />
+            ))}
+          </div>
         ) : (
           <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
             <div className="flex gap-3 h-full min-h-[500px]">

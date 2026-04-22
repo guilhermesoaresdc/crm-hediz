@@ -27,6 +27,66 @@ const statusTimestamps: Record<string, string> = {
 };
 
 export const leadRouter = createTRPCRouter({
+  /**
+   * Endpoint otimizado pra Kanban: só campos necessários, sem perdidos/descartados,
+   * limite alto por status (não puxa 500 linhas de uma vez).
+   */
+  paraPipeline: protectedProcedure
+    .input(
+      z
+        .object({
+          corretor_id: z.string().uuid().optional(),
+          origem: z.string().optional(),
+          busca: z.string().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      let q = ctx.supabase
+        .from("leads")
+        .select(
+          "id, nome, whatsapp, status, origem, em_bolsao, created_at, atribuido_em, primeira_mensagem_em, corretor_id, campanha_id, corretor:usuarios!leads_corretor_id_fkey(id, nome, avatar_url), campanha:campanhas(id, nome)",
+        )
+        .not("status", "in", "(perdido,descartado)")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (input?.corretor_id) q = q.eq("corretor_id", input.corretor_id);
+      if (input?.origem) q = q.eq("origem", input.origem);
+      if (input?.busca) {
+        const s = input.busca.replace(/[%_]/g, "");
+        q = q.or(`nome.ilike.%${s}%,whatsapp.ilike.%${s}%`);
+      }
+
+      const { data, error } = await q;
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+
+      // Normaliza corretor/campanha caso venham como array
+      const normalizados = (data ?? []).map((l) => {
+        const corretorRaw = l.corretor as unknown;
+        const campanhaRaw = l.campanha as unknown;
+        return {
+          id: l.id,
+          nome: l.nome,
+          whatsapp: l.whatsapp,
+          status: l.status,
+          origem: l.origem,
+          em_bolsao: l.em_bolsao,
+          created_at: l.created_at,
+          atribuido_em: l.atribuido_em,
+          primeira_mensagem_em: l.primeira_mensagem_em,
+          corretor: (Array.isArray(corretorRaw) ? corretorRaw[0] : corretorRaw) as
+            | { id: string; nome: string; avatar_url: string | null }
+            | null,
+          campanha: (Array.isArray(campanhaRaw) ? campanhaRaw[0] : campanhaRaw) as
+            | { id: string; nome: string }
+            | null,
+        };
+      });
+
+      return { leads: normalizados, total: normalizados.length };
+    }),
+
   listar: protectedProcedure
     .input(
       z
