@@ -1,5 +1,7 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
+type SupabaseCookie = { name: string; value: string; options?: CookieOptions };
 
 export function createSupabaseServerClient() {
   const cookieStore = cookies();
@@ -11,7 +13,7 @@ export function createSupabaseServerClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: SupabaseCookie[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options),
@@ -25,16 +27,15 @@ export function createSupabaseServerClient() {
   );
 }
 
-/**
- * Cliente com service role — bypassa RLS.
- * Usar APENAS em handlers de webhook e jobs, nunca em endpoints autenticados.
- */
 export function createSupabaseServiceClient() {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
-      cookies: { getAll: () => [], setAll: () => {} },
+      cookies: {
+        getAll: (): SupabaseCookie[] => [],
+        setAll: (_cookies: SupabaseCookie[]) => {},
+      },
       auth: { persistSession: false, autoRefreshToken: false },
     },
   );
