@@ -52,12 +52,17 @@ export default function SignupPage() {
       }
 
       const supabase = createSupabaseBrowserClient();
-      const { error: signErr } = await supabase.auth.signInWithPassword({
-        email: form.admin_email,
-        password: form.admin_password,
-      });
-      if (signErr) {
-        setError(signErr.message);
+      const signResult = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email: form.admin_email,
+          password: form.admin_password,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout ao fazer login automático")), 15000),
+        ),
+      ]);
+      if (signResult.error) {
+        setError(signResult.error.message);
         setLoading(false);
         return;
       }

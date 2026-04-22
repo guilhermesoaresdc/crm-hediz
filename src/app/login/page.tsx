@@ -20,15 +20,29 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+
+      // Timeout de 15s para não pendurar a tela
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout: servidor não respondeu em 15s")), 15000),
+        ),
+      ]);
+
+      if (result.error) {
+        setError(result.error.message);
+        setLoading(false);
+        return;
+      }
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha no login");
       setLoading(false);
-      return;
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
