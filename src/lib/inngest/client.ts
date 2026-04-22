@@ -12,6 +12,9 @@ type Events = {
   "venda/registrada": {
     data: { venda_id: string; lead_id: string; imobiliaria_id: string };
   };
+  "meta/sincronizar": {
+    data: { imobiliaria_id: string; tipo: "campanhas" | "custos" | "ambos" };
+  };
 };
 
 export const inngest = new Inngest({

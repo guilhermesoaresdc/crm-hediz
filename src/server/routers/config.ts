@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, adminProcedure, protectedProcedure } from "../trpc";
+import { testarCredenciaisMeta, sincronizarCampanhasImobiliaria, sincronizarCustosImobiliaria } from "@/lib/integrations/meta-graph";
+import { sendInngestEvent } from "@/lib/inngest/client";
 
 export const configRouter = createTRPCRouter({
   obter: protectedProcedure.query(async ({ ctx }) => {
@@ -61,6 +63,113 @@ export const configRouter = createTRPCRouter({
       if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       return { ok: true };
     }),
+
+  desconectarMeta: adminProcedure.mutation(async ({ ctx }) => {
+    const { error } = await ctx.supabase
+      .from("configuracoes_imobiliaria")
+      .update({
+        meta_business_id: null,
+        meta_ad_account_id: null,
+        meta_page_id: null,
+        meta_access_token: null,
+        meta_pixel_id: null,
+        meta_capi_token: null,
+        meta_conectado_em: null,
+      })
+      .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
+    if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+    return { ok: true };
+  }),
+
+  testarMeta: adminProcedure.mutation(async ({ ctx }) => {
+    const { data: config } = await ctx.supabase
+      .from("configuracoes_imobiliaria")
+      .select("meta_access_token, meta_ad_account_id")
+      .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+      .single();
+
+    if (!config?.meta_access_token) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta não configurado" });
+    }
+
+    try {
+      const me = await testarCredenciaisMeta(config.meta_access_token);
+      return {
+        ok: true,
+        business: me.name,
+        business_id: me.id,
+        ad_account: config.meta_ad_account_id,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Token inválido: ${msg}` });
+    }
+  }),
+
+  sincronizarMetaAgora: adminProcedure
+    .input(
+      z
+        .object({ tipo: z.enum(["campanhas", "custos", "ambos"]).default("ambos") })
+        .optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const tipo = input?.tipo ?? "ambos";
+
+      // Se Inngest estiver configurado, dispara evento (roda em background com retry)
+      if (process.env.INNGEST_EVENT_KEY) {
+        await sendInngestEvent("meta/sincronizar", {
+          imobiliaria_id: ctx.profile.imobiliaria_id,
+          tipo,
+        });
+        return { ok: true, modo: "background" as const };
+      }
+
+      // Fallback: roda síncrono (bloqueia a request mas funciona sem Inngest)
+      const resultado = { campanhas: 0, custos: 0 };
+      if (tipo === "campanhas" || tipo === "ambos") {
+        const r = await sincronizarCampanhasImobiliaria(ctx.profile.imobiliaria_id);
+        resultado.campanhas = r.items;
+      }
+      if (tipo === "custos" || tipo === "ambos") {
+        const r = await sincronizarCustosImobiliaria(ctx.profile.imobiliaria_id, 7);
+        resultado.custos = r.items;
+      }
+      return { ok: true, modo: "sincrono" as const, ...resultado };
+    }),
+
+  statusSync: protectedProcedure.query(async ({ ctx }) => {
+    const { data } = await ctx.supabase
+      .from("sync_log")
+      .select("id, tipo, status, items_processados, erro, iniciado_em, finalizado_em")
+      .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+      .order("iniciado_em", { ascending: false })
+      .limit(10);
+
+    const ultimoPorTipo: Record<string, (typeof data)[number] | undefined> = {};
+    for (const log of data ?? []) {
+      if (!ultimoPorTipo[log.tipo]) ultimoPorTipo[log.tipo] = log;
+    }
+
+    return {
+      recentes: data ?? [],
+      ultima_campanhas: ultimoPorTipo["meta_campanhas"] ?? null,
+      ultima_custos: ultimoPorTipo["meta_custos"] ?? null,
+    };
+  }),
+
+  desconectarWhatsapp: adminProcedure.mutation(async ({ ctx }) => {
+    const { error } = await ctx.supabase
+      .from("configuracoes_imobiliaria")
+      .update({
+        whatsapp_phone_number_id: null,
+        whatsapp_business_account_id: null,
+        whatsapp_access_token: null,
+        whatsapp_conectado_em: null,
+      })
+      .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
+    if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+    return { ok: true };
+  }),
 
   conectarWhatsapp: adminProcedure
     .input(

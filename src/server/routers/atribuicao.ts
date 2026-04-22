@@ -126,7 +126,7 @@ export const atribuicaoRouter = createTRPCRouter({
         .lte("created_at", `${fim}T23:59:59`),
       ctx.supabase
         .from("custos")
-        .select("campanha_id, conjunto_id, anuncio_id, valor, tipo")
+        .select("campanha_id, conjunto_id, anuncio_id, valor, tipo, alcance, impressoes, clicks")
         .eq("imobiliaria_id", scope)
         .gte("data", inicio)
         .lte("data", fim),
@@ -225,6 +225,8 @@ export const atribuicaoRouter = createTRPCRouter({
     for (const c of custos ?? []) {
       const tipo = c.tipo;
       const valor = Number(c.valor ?? 0);
+      const alcance = Number(c.alcance ?? 0);
+      const impressoes = Number(c.impressoes ?? 0);
       const ids = [
         { id: c.campanha_id, map: aggCampanha },
         { id: c.conjunto_id, map: aggConjunto },
@@ -235,6 +237,12 @@ export const atribuicaoRouter = createTRPCRouter({
         const agg = map.get(id) ?? novoAgg();
         if (tipo === "meta_ads" || tipo === "google_ads") agg.gasto_midia += valor;
         else if (tipo === "fee_agencia") agg.fee_agencia += valor;
+        // Alcance/impressões só fazem sentido pra o último nível (anúncio)
+        // mas somamos em todos os níveis pro drill-down agregado
+        if (c.anuncio_id === id || c.conjunto_id === id || c.campanha_id === id) {
+          agg.alcance += alcance;
+          agg.impressoes += impressoes;
+        }
         map.set(id, agg);
       }
     }
@@ -300,6 +308,8 @@ export const atribuicaoRouter = createTRPCRouter({
       const valor = Number(c.valor ?? 0);
       if (c.tipo === "meta_ads" || c.tipo === "google_ads") total.gasto_midia += valor;
       else if (c.tipo === "fee_agencia") total.fee_agencia += valor;
+      total.alcance += Number(c.alcance ?? 0);
+      total.impressoes += Number(c.impressoes ?? 0);
     }
 
     const campanhasAtivas = campanhas.filter((c) => c.status === "ACTIVE").length;

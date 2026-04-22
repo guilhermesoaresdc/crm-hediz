@@ -183,10 +183,11 @@ export default function RastreamentoCampanhasPage() {
               <thead className="bg-muted/50 border-b">
                 <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
                   <th className="px-4 py-3 font-medium">Campanha</th>
+                  <th className="px-3 py-3 font-medium text-right">Alcance</th>
                   <th className="px-3 py-3 font-medium text-right">Leads</th>
                   <th className="px-3 py-3 font-medium text-right">Visitas</th>
                   <th className="px-3 py-3 font-medium text-right">Taxa conv</th>
-                  <th className="px-3 py-3 font-medium text-right">Arquivados</th>
+                  <th className="px-3 py-3 font-medium text-right">Arquiv.</th>
                   <th className="px-3 py-3 font-medium text-right">CPL real</th>
                   <th className="px-3 py-3 font-medium text-right">Vendas</th>
                   <th className="px-3 py-3 font-medium text-right">Faturamento</th>
@@ -196,14 +197,14 @@ export default function RastreamentoCampanhasPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={10} className="p-8 text-center text-muted-foreground">
                       Carregando...
                     </td>
                   </tr>
                 ) : !data?.hierarquia?.length ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
-                      Nenhuma campanha com dados no período. Conecte Meta em Configurações
+                    <td colSpan={10} className="p-8 text-center text-muted-foreground">
+                      Nenhuma campanha com dados no período. Conecte Meta em Integrações
                       pra sincronizar campanhas e custos automaticamente.
                     </td>
                   </tr>
@@ -295,10 +296,14 @@ function MetricaCells({
     taxa_conversao: number;
     custo_por_lead: number;
     roas_real: number;
+    alcance: number;
   };
 }) {
   return (
     <>
+      <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
+        {m.alcance > 0 ? m.alcance.toLocaleString("pt-BR") : "—"}
+      </td>
       <td className="px-3 py-3 text-right tabular-nums">{m.leads}</td>
       <td className="px-3 py-3 text-right tabular-nums">{m.visitas}</td>
       <td className="px-3 py-3 text-right tabular-nums">

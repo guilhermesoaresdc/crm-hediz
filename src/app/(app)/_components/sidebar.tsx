@@ -12,6 +12,7 @@ import {
   DollarSign,
   UsersRound,
   Briefcase,
+  Plug,
 } from "lucide-react";
 import { HedizWordmark } from "@/components/hediz-logo";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,7 @@ const SECTIONS: NavSection[] = [
     label: "Organização",
     items: [
       { href: "/equipe", label: "Equipe", icon: UsersRound, roles: ["super_admin", "gerente"] },
+      { href: "/integracoes", label: "Integrações", icon: Plug, roles: ["super_admin"] },
       { href: "/configuracoes", label: "Configurações", icon: Settings, roles: ["super_admin"] },
     ],
   },

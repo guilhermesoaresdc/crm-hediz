@@ -1,6 +1,10 @@
 import { inngest } from "./client";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { enviarCapiPurchase } from "@/lib/integrations/meta-capi";
+import {
+  sincronizarCampanhasImobiliaria,
+  sincronizarCustosImobiliaria,
+} from "@/lib/integrations/meta-graph";
 
 /**
  * Disparada quando um lead é atribuído a um corretor.
@@ -71,4 +75,92 @@ export const reenviarCapiPurchase = inngest.createFunction(
   },
 );
 
-export const functions = [verificarTimeoutBolsao, reenviarCapiPurchase];
+/**
+ * Cron a cada 6h: sincroniza campanhas/conjuntos/anúncios de
+ * todas as imobiliárias conectadas.
+ */
+export const syncCampanhasMetaDiario = inngest.createFunction(
+  { id: "sync-campanhas-meta", name: "Sync Meta campanhas (6h)" },
+  { cron: "0 */6 * * *" },
+  async ({ step }) => {
+    const imobiliarias = await step.run("listar-conectadas", async () => {
+      const svc = createSupabaseServiceClient();
+      const { data } = await svc
+        .from("configuracoes_imobiliaria")
+        .select("imobiliaria_id")
+        .not("meta_access_token", "is", null);
+      return data ?? [];
+    });
+
+    for (const imo of imobiliarias) {
+      await step.run(`sync-${imo.imobiliaria_id}`, async () => {
+        try {
+          await sincronizarCampanhasImobiliaria(imo.imobiliaria_id);
+        } catch (err) {
+          console.error(`[sync campanhas ${imo.imobiliaria_id}]`, err);
+        }
+      });
+    }
+    return { processadas: imobiliarias.length };
+  },
+);
+
+/**
+ * Cron diário 03:00 UTC: sincroniza custos + insights dos últimos 7 dias.
+ */
+export const syncCustosMetaDiario = inngest.createFunction(
+  { id: "sync-custos-meta", name: "Sync Meta custos (diário)" },
+  { cron: "0 3 * * *" },
+  async ({ step }) => {
+    const imobiliarias = await step.run("listar-conectadas", async () => {
+      const svc = createSupabaseServiceClient();
+      const { data } = await svc
+        .from("configuracoes_imobiliaria")
+        .select("imobiliaria_id")
+        .not("meta_access_token", "is", null);
+      return data ?? [];
+    });
+
+    for (const imo of imobiliarias) {
+      await step.run(`sync-custos-${imo.imobiliaria_id}`, async () => {
+        try {
+          await sincronizarCustosImobiliaria(imo.imobiliaria_id, 7);
+        } catch (err) {
+          console.error(`[sync custos ${imo.imobiliaria_id}]`, err);
+        }
+      });
+    }
+    return { processadas: imobiliarias.length };
+  },
+);
+
+/**
+ * Evento on-demand disparado pela UI (botão "Sincronizar agora").
+ */
+export const syncMetaOnDemand = inngest.createFunction(
+  { id: "sync-meta-on-demand", name: "Sync Meta (manual)", retries: 1 },
+  { event: "meta/sincronizar" },
+  async ({ event, step }) => {
+    const { imobiliaria_id, tipo } = event.data;
+
+    if (tipo === "campanhas" || tipo === "ambos") {
+      await step.run("sync-campanhas", () =>
+        sincronizarCampanhasImobiliaria(imobiliaria_id),
+      );
+    }
+
+    if (tipo === "custos" || tipo === "ambos") {
+      await step.run("sync-custos", () => sincronizarCustosImobiliaria(imobiliaria_id, 7));
+    }
+
+    return { ok: true };
+  },
+);
+
+export const functions = [
+  verificarTimeoutBolsao,
+  reenviarCapiPurchase,
+  syncCampanhasMetaDiario,
+  syncCustosMetaDiario,
+  syncMetaOnDemand,
+];
