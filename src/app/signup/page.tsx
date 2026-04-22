@@ -26,31 +26,47 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    const res = await fetch("/api/onboarding", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const body = await res.json();
+    try {
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
-    if (!res.ok) {
-      setError(typeof body.error === "string" ? body.error : "Falha ao criar conta");
-      setLoading(false);
-      return;
-    }
+      const text = await res.text();
+      let body: { error?: unknown } = {};
+      try {
+        body = text ? JSON.parse(text) : {};
+      } catch {
+        body = { error: text || "Resposta inválida do servidor" };
+      }
 
-    const supabase = createSupabaseBrowserClient();
-    const { error: signErr } = await supabase.auth.signInWithPassword({
-      email: form.admin_email,
-      password: form.admin_password,
-    });
-    if (signErr) {
-      setError(signErr.message);
+      if (!res.ok) {
+        const msg =
+          typeof body.error === "string"
+            ? body.error
+            : `Falha ao criar conta (HTTP ${res.status})`;
+        setError(msg);
+        setLoading(false);
+        return;
+      }
+
+      const supabase = createSupabaseBrowserClient();
+      const { error: signErr } = await supabase.auth.signInWithPassword({
+        email: form.admin_email,
+        password: form.admin_password,
+      });
+      if (signErr) {
+        setError(signErr.message);
+        setLoading(false);
+        return;
+      }
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro de rede");
       setLoading(false);
-      return;
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
