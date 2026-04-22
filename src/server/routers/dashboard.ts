@@ -205,10 +205,14 @@ export const dashboardRouter = createTRPCRouter({
       const campanhas = campanhasRes.data ?? [];
       return campanhas.map((c) => {
         const leads = (leadsRes.data ?? []).filter((l) => l.campanha_id === c.id);
-        const vendas = (vendasRes.data ?? []).filter(
-          (v) =>
-            (Array.isArray(v.lead) ? v.lead[0]?.campanha_id : (v.lead as { campanha_id?: string } | null)?.campanha_id) === c.id,
-        );
+        const vendas = (vendasRes.data ?? []).filter((v) => {
+          const leadRaw = v.lead as unknown;
+          const lead = (Array.isArray(leadRaw) ? leadRaw[0] : leadRaw) as
+            | { campanha_id?: string }
+            | null
+            | undefined;
+          return lead?.campanha_id === c.id;
+        });
         const gastos = (custosRes.data ?? []).filter((x) => x.campanha_id === c.id);
         const gastoMidia = gastos
           .filter((g) => g.tipo === "meta_ads" || g.tipo === "google_ads")

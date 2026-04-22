@@ -96,11 +96,32 @@ export async function enviarCapiPurchase(params: {
 
   if (!venda) throw new Error("Venda não encontrada");
 
-  const lead = Array.isArray(venda.lead) ? venda.lead[0] : venda.lead;
+  const leadRaw = venda.lead as unknown;
+  const lead = (Array.isArray(leadRaw) ? leadRaw[0] : leadRaw) as
+    | {
+        id: string;
+        nome: string;
+        email: string | null;
+        whatsapp: string;
+        fbp: string | null;
+        fbc: string | null;
+        created_at: string;
+        anuncio?: { meta_ad_id?: string } | { meta_ad_id?: string }[] | null;
+        campanha?: { meta_campaign_id?: string } | { meta_campaign_id?: string }[] | null;
+      }
+    | null;
   if (!lead) throw new Error("Lead associado não encontrado");
 
-  const anuncio = Array.isArray(lead.anuncio) ? lead.anuncio[0] : lead.anuncio;
-  const campanha = Array.isArray(lead.campanha) ? lead.campanha[0] : lead.campanha;
+  const anuncioRaw = lead.anuncio as unknown;
+  const anuncio = (Array.isArray(anuncioRaw) ? anuncioRaw[0] : anuncioRaw) as
+    | { meta_ad_id?: string }
+    | null
+    | undefined;
+  const campanhaRaw = lead.campanha as unknown;
+  const campanha = (Array.isArray(campanhaRaw) ? campanhaRaw[0] : campanhaRaw) as
+    | { meta_campaign_id?: string }
+    | null
+    | undefined;
 
   const [firstName, ...rest] = (lead.nome ?? "").trim().split(" ");
   const lastName = rest.pop() ?? "";

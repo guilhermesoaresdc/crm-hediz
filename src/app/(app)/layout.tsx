@@ -19,9 +19,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!profile) redirect("/login");
 
-  const imobiliaria = Array.isArray(profile.imobiliaria)
-    ? profile.imobiliaria[0]
-    : (profile.imobiliaria as { nome?: string; logo_url?: string | null } | null);
+  const imobiliariaRaw = profile.imobiliaria as unknown;
+  const imobiliaria = (Array.isArray(imobiliariaRaw)
+    ? imobiliariaRaw[0]
+    : imobiliariaRaw) as { nome?: string; logo_url?: string | null } | null | undefined;
 
   return (
     <div className="min-h-screen flex">

@@ -53,8 +53,12 @@ export async function POST(req: Request) {
       .maybeSingle();
     if (ad) {
       anuncio_id = ad.id;
-      const conj = Array.isArray(ad.conjunto) ? ad.conjunto[0] : ad.conjunto;
-      campanha_id = (conj as { campanha_id?: string } | null)?.campanha_id ?? null;
+      const conjRaw = ad.conjunto as unknown;
+      const conj = (Array.isArray(conjRaw) ? conjRaw[0] : conjRaw) as
+        | { campanha_id?: string }
+        | null
+        | undefined;
+      campanha_id = conj?.campanha_id ?? null;
     }
   }
 

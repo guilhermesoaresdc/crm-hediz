@@ -68,9 +68,10 @@ export async function POST(req: Request) {
           .eq("meta_ad_id", adId ?? leadData.ad_id)
           .maybeSingle();
 
-        const conjunto = Array.isArray(anuncio?.conjunto)
-          ? anuncio?.conjunto[0]
-          : (anuncio?.conjunto as { id?: string; campanha_id?: string } | null);
+        const conjuntoRaw = anuncio?.conjunto as unknown;
+        const conjunto = (Array.isArray(conjuntoRaw)
+          ? conjuntoRaw[0]
+          : conjuntoRaw) as { id?: string; campanha_id?: string } | null | undefined;
 
         const { data: lead, error } = await svc
           .from("leads")
