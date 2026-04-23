@@ -8,8 +8,10 @@ import {
 } from "@/lib/integrations/meta-oauth";
 
 const schema = z.object({
-  code: z.string(),
-  // O FB.login com Embedded Signup às vezes retorna esses campos no callback
+  // code flow (default do Embedded Signup v3)
+  code: z.string().optional(),
+  // token flow (fallback)
+  access_token: z.string().optional(),
   waba_id: z.string().optional(),
   phone_number_id: z.string().optional(),
 });
@@ -48,23 +50,41 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!parsed.data.code && !parsed.data.access_token) {
+    return NextResponse.json(
+      { error: "Precisa fornecer 'code' ou 'access_token'" },
+      { status: 400 },
+    );
+  }
+
   try {
-    // 1. Troca code por short-lived token
-    const short = await trocarEmbeddedSignupCode({
-      appId,
-      appSecret,
-      code: parsed.data.code,
-    });
+    let accessToken: string;
 
-    // 2. Long-lived (60 dias)
-    const long = await trocarPorLongLived({
-      appId,
-      appSecret,
-      shortToken: short.access_token,
-    });
+    if (parsed.data.code) {
+      // Code flow: troca code → short-lived → long-lived
+      const short = await trocarEmbeddedSignupCode({
+        appId,
+        appSecret,
+        code: parsed.data.code,
+      });
+      const long = await trocarPorLongLived({
+        appId,
+        appSecret,
+        shortToken: short.access_token,
+      });
+      accessToken = long.access_token;
+    } else {
+      // Token flow: upgrade direto pra long-lived
+      const long = await trocarPorLongLived({
+        appId,
+        appSecret,
+        shortToken: parsed.data.access_token!,
+      });
+      accessToken = long.access_token;
+    }
 
-    // 3. Descobre os phones disponíveis no token
-    let phones = await listarTodosPhones(long.access_token);
+    // Descobre os phones disponíveis no token
+    let phones = await listarTodosPhones(accessToken);
 
     // Se o callback do FB.login forneceu IDs específicos, filtra
     if (parsed.data.waba_id) {
@@ -109,7 +129,7 @@ export async function POST(req: Request) {
           whatsapp_phone_display: p.display_phone_number,
           verified_name: p.verified_name,
           quality_rating: p.quality_rating,
-          access_token: long.access_token,
+          access_token: accessToken,
         })
         .select()
         .single();
@@ -119,10 +139,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // Atualiza o meta_access_token global também (caso ainda não tenha)
+    // Atualiza o meta_access_token global também
     await supabase
       .from("configuracoes_imobiliaria")
-      .update({ meta_access_token: long.access_token })
+      .update({ meta_access_token: accessToken })
       .eq("imobiliaria_id", profile.imobiliaria_id);
 
     return NextResponse.json({ ok: true, canais: criados });
