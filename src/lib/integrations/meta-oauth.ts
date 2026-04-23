@@ -498,14 +498,14 @@ export async function obterDetalhesWaba(accessToken: string, wabaId: string) {
  * Embedded Signup: troca o code que vem do FB.login (com config_id) por
  * um Business Integration System User access token (long-lived).
  *
- * Per docs da Meta (Embedded Signup v3): NÃO passar `redirect_uri` no
- * token exchange — o FB JSSDK não usa redirect_uri no dialog, então
- * qualquer valor (inclusive string vazia) resulta em:
- *   "Error validating verification code. Please make sure your
- *   redirect_uri is identical to the one you used in the OAuth dialog"
+ * O FB JSSDK usa internamente `https://staticxx.facebook.com/x/connect/xd_arbiter/`
+ * como redirect_uri no dialog OAuth. Quando fazemos o exchange, precisamos
+ * passar o MESMO valor (senão: "Error validating verification code. Please
+ * make sure your redirect_uri is identical to the one you used in the OAuth
+ * dialog request"). Algumas versões do SDK também aceitam omitido/vazio.
  *
- * O token retornado já é long-lived (não precisa ser trocado por
- * long-lived de novo) e pertence a um System User de integração.
+ * Tentamos em cascata. O code do OAuth só é consumido em exchange com
+ * sucesso (erro não consome), então a cascata é segura.
  */
 export async function trocarEmbeddedSignupCode(params: {
   appId: string;
@@ -516,20 +516,50 @@ export async function trocarEmbeddedSignupCode(params: {
   token_type?: string;
   expires_in?: number;
 }> {
-  const url = new URL("https://graph.facebook.com/v22.0/oauth/access_token");
-  url.searchParams.set("client_id", params.appId);
-  url.searchParams.set("client_secret", params.appSecret);
-  url.searchParams.set("code", params.code);
-  // ATENÇÃO: não passamos redirect_uri — o FB JSSDK não usa um, e qualquer
-  // valor faz a Meta rejeitar com "Error validating verification code".
+  const STATICXX = "https://staticxx.facebook.com/x/connect/xd_arbiter/";
 
-  const res = await fetch(url.toString());
-  const json = await res.json();
-  if (!res.ok || !json?.access_token) {
-    const msg = json?.error?.message ?? `HTTP ${res.status}`;
-    throw new Error(`Embedded Signup token exchange falhou: ${msg}`);
+  const tentativas: Array<{ label: string; redirect_uri?: string }> = [
+    { label: "xd_arbiter", redirect_uri: STATICXX },
+    { label: "xd_arbiter_v46", redirect_uri: `${STATICXX}?version=46` },
+    { label: "omitted" },
+    { label: "empty", redirect_uri: "" },
+  ];
+
+  let ultimoErro = "Nenhuma tentativa executada";
+  for (const t of tentativas) {
+    const url = new URL("https://graph.facebook.com/v22.0/oauth/access_token");
+    url.searchParams.set("client_id", params.appId);
+    url.searchParams.set("client_secret", params.appSecret);
+    url.searchParams.set("code", params.code);
+    if (t.redirect_uri !== undefined) {
+      url.searchParams.set("redirect_uri", t.redirect_uri);
+    }
+
+    const res = await fetch(url.toString());
+    const json = await res.json();
+    if (res.ok && json?.access_token) {
+      console.log(
+        `[embedded-signup] token exchange OK com redirect_uri="${t.label}"`,
+      );
+      return json;
+    }
+
+    ultimoErro = json?.error?.message ?? `HTTP ${res.status}`;
+    console.warn(
+      `[embedded-signup] falha "${t.label}" (${json?.error?.code}/${json?.error?.error_subcode}): ${ultimoErro}`,
+    );
+
+    // Se o erro não é sobre redirect_uri (ex: code expirado, app id errado),
+    // não vale tentar outras variantes — aborta com a mensagem original
+    const msgLower = ultimoErro.toLowerCase();
+    const ehProblemaDeRedirect =
+      msgLower.includes("redirect_uri") ||
+      msgLower.includes("redirect uri") ||
+      msgLower.includes("validating verification code");
+    if (!ehProblemaDeRedirect) break;
   }
-  return json;
+
+  throw new Error(`Embedded Signup token exchange falhou: ${ultimoErro}`);
 }
 
 /**
