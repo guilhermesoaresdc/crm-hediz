@@ -191,8 +191,16 @@ function MetaIntegrationCard({
                 )}
                 Sincronizar agora
               </Button>
+              {oauthDisponivel && (
+                <a href="/api/auth/meta/start">
+                  <Button size="sm" variant="outline" className="gap-2">
+                    <Facebook className="h-3.5 w-3.5" />
+                    Trocar Business / reconectar
+                  </Button>
+                </a>
+              )}
               <Button size="sm" variant="ghost" onClick={() => setEditando(true)}>
-                Editar credenciais
+                Editar credenciais manualmente
               </Button>
               <Button
                 size="sm"

@@ -120,20 +120,22 @@ export default function SelecionarMetaAssetsPage() {
         </p>
       </div>
 
-      {/* Stepper */}
-      <div className="flex items-center gap-2 text-xs">
+      {/* Stepper clicável (pra voltar a etapas anteriores) */}
+      <div className="flex items-center gap-2 text-xs flex-wrap">
         {steps.map((s, i) => {
           const currentIdx = steps.findIndex((x) => x.id === step);
           const done = i < currentIdx;
           const current = i === currentIdx;
-          return (
-            <div key={s.id} className="flex items-center gap-2">
+          const clicavel = done; // só steps já completados
+          const stepEl = (
+            <>
               <div
                 className={cn(
-                  "h-6 w-6 rounded-full inline-flex items-center justify-center text-[10px] font-bold",
+                  "h-6 w-6 rounded-full inline-flex items-center justify-center text-[10px] font-bold transition-colors",
                   done && "bg-success text-success-foreground",
                   current && "bg-primary text-primary-foreground",
                   !done && !current && "bg-muted text-muted-foreground",
+                  clicavel && "group-hover:ring-2 group-hover:ring-primary/40",
                 )}
               >
                 {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : i + 1}
@@ -141,10 +143,27 @@ export default function SelecionarMetaAssetsPage() {
               <span
                 className={cn(
                   current ? "text-foreground font-medium" : "text-muted-foreground",
+                  clicavel && "group-hover:text-foreground",
                 )}
               >
                 {s.label}
               </span>
+            </>
+          );
+          return (
+            <div key={s.id} className="flex items-center gap-2">
+              {clicavel ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(s.id)}
+                  className="flex items-center gap-2 group cursor-pointer"
+                  title="Voltar pra essa etapa"
+                >
+                  {stepEl}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">{stepEl}</div>
+              )}
               {i < steps.length - 1 && (
                 <ChevronRight className="h-3 w-3 text-muted-foreground" />
               )}
@@ -195,9 +214,17 @@ export default function SelecionarMetaAssetsPage() {
       {step === "ad_account" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Escolha a conta de anúncios</CardTitle>
-            <div className="text-xs text-muted-foreground">
-              Business: <strong>{selecao.meta_business_nome}</strong>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Escolha a conta de anúncios</CardTitle>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Business: <strong>{selecao.meta_business_nome}</strong>
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setStep("business")}>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Voltar
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -254,9 +281,17 @@ export default function SelecionarMetaAssetsPage() {
       {step === "page" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Escolha a página (opcional)</CardTitle>
-            <div className="text-xs text-muted-foreground">
-              Usada pra receber leads do Lead Ads. Pode pular e configurar depois.
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Escolha a página (opcional)</CardTitle>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Usada pra receber leads do Lead Ads. Pode pular e configurar depois.
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setStep("ad_account")}>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Voltar
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -302,10 +337,18 @@ export default function SelecionarMetaAssetsPage() {
       {step === "pixel" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Escolha o Pixel (opcional)</CardTitle>
-            <div className="text-xs text-muted-foreground">
-              Usado para Conversion API. Sem pixel o envio de Lead/Purchase fica
-              desativado.
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Escolha o Pixel (opcional)</CardTitle>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Usado para Conversion API. Sem pixel o envio de Lead/Purchase fica
+                  desativado.
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setStep("page")}>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Voltar
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -350,7 +393,13 @@ export default function SelecionarMetaAssetsPage() {
       {step === "capi" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Conversion API Token (opcional)</CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="text-base">Conversion API Token (opcional)</CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => setStep("pixel")}>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Voltar
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-md bg-muted/50 border p-3 text-xs space-y-2">
@@ -417,7 +466,13 @@ export default function SelecionarMetaAssetsPage() {
       {step === "concluir" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Revisão</CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="text-base">Revisão</CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => setStep("capi")}>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Voltar
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <dl className="space-y-2 text-sm">
@@ -462,8 +517,8 @@ export default function SelecionarMetaAssetsPage() {
               >
                 {finalizar.isPending ? "Conectando..." : "Conectar e sincronizar"}
               </Button>
-              <Button variant="ghost" onClick={() => setStep("business")}>
-                Voltar ao início
+              <Button variant="outline" onClick={() => setStep("business")}>
+                Começar de novo
               </Button>
             </div>
           </CardContent>
