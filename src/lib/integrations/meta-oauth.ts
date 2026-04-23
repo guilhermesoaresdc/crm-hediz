@@ -44,7 +44,7 @@ export async function trocarCodePorToken(params: {
   redirectUri: string;
   code: string;
 }): Promise<{ access_token: string; expires_in?: number }> {
-  const url = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
+  const url = new URL("https://graph.facebook.com/v22.0/oauth/access_token");
   url.searchParams.set("client_id", params.appId);
   url.searchParams.set("client_secret", params.appSecret);
   url.searchParams.set("redirect_uri", params.redirectUri);
@@ -63,7 +63,7 @@ export async function trocarPorLongLived(params: {
   appSecret: string;
   shortToken: string;
 }): Promise<{ access_token: string; expires_in: number }> {
-  const url = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
+  const url = new URL("https://graph.facebook.com/v22.0/oauth/access_token");
   url.searchParams.set("grant_type", "fb_exchange_token");
   url.searchParams.set("client_id", params.appId);
   url.searchParams.set("client_secret", params.appSecret);
@@ -79,7 +79,7 @@ export async function graphGet<T = unknown>(
   accessToken: string,
   params: Record<string, string | number> = {},
 ): Promise<T> {
-  const url = new URL(`https://graph.facebook.com/v19.0/${path.replace(/^\//, "")}`);
+  const url = new URL(`https://graph.facebook.com/v22.0/${path.replace(/^\//, "")}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
   url.searchParams.set("access_token", accessToken);
   const res = await fetch(url.toString());
@@ -284,7 +284,7 @@ export async function criarTemplateNaMeta(
   wabaId: string,
   template: NovoTemplate,
 ): Promise<{ id: string; status: string; category?: string }> {
-  const url = `https://graph.facebook.com/v19.0/${wabaId}/message_templates`;
+  const url = `https://graph.facebook.com/v22.0/${wabaId}/message_templates`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -313,7 +313,7 @@ export async function deletarTemplateNaMeta(
   wabaId: string,
   nome: string,
 ) {
-  const url = new URL(`https://graph.facebook.com/v19.0/${wabaId}/message_templates`);
+  const url = new URL(`https://graph.facebook.com/v22.0/${wabaId}/message_templates`);
   url.searchParams.set("name", nome);
   url.searchParams.set("access_token", accessToken);
   const res = await fetch(url.toString(), { method: "DELETE" });
@@ -330,7 +330,7 @@ async function metaPost<T = unknown>(
   accessToken: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  const url = `https://graph.facebook.com/v19.0/${path.replace(/^\//, "")}`;
+  const url = `https://graph.facebook.com/v22.0/${path.replace(/^\//, "")}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -495,61 +495,56 @@ export async function obterDetalhesWaba(accessToken: string, wabaId: string) {
 }
 
 /**
- * Embedded Signup com Coexistence: troca o code que vem do FB.login
- * (com config_id) por um access token e dados do WhatsApp configurado.
+ * Embedded Signup: troca o code que vem do FB.login (com config_id) por
+ * um Business Integration System User access token (long-lived).
  *
- * Meta exige que `redirect_uri` seja idêntico ao usado internamente pelo
- * JSSDK, mas isso varia entre versões do SDK / Graph API: pode ser string
- * vazia, pode ser a origin da página, ou pode precisar ser omitido.
- * Tentamos cada variante e retornamos a primeira que funciona.
+ * Per docs da Meta (Embedded Signup v3): NÃO passar `redirect_uri` no
+ * token exchange — o FB JSSDK não usa redirect_uri no dialog, então
+ * qualquer valor (inclusive string vazia) resulta em:
+ *   "Error validating verification code. Please make sure your
+ *   redirect_uri is identical to the one you used in the OAuth dialog"
+ *
+ * O token retornado já é long-lived (não precisa ser trocado por
+ * long-lived de novo) e pertence a um System User de integração.
  */
 export async function trocarEmbeddedSignupCode(params: {
   appId: string;
   appSecret: string;
   code: string;
-  origin?: string;
 }): Promise<{
   access_token: string;
+  token_type?: string;
   expires_in?: number;
 }> {
-  const tentativas: Array<{ label: string; redirect_uri?: string }> = [
-    { label: "empty", redirect_uri: "" },
-    { label: "omitted" },
-  ];
-  if (params.origin) {
-    tentativas.push({ label: "origin", redirect_uri: params.origin });
-    tentativas.push({ label: "origin/", redirect_uri: `${params.origin}/` });
-  }
+  const url = new URL("https://graph.facebook.com/v22.0/oauth/access_token");
+  url.searchParams.set("client_id", params.appId);
+  url.searchParams.set("client_secret", params.appSecret);
+  url.searchParams.set("code", params.code);
+  // ATENÇÃO: não passamos redirect_uri — o FB JSSDK não usa um, e qualquer
+  // valor faz a Meta rejeitar com "Error validating verification code".
 
-  let ultimoErro = "Nenhuma tentativa executada";
-  for (const t of tentativas) {
-    const url = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
-    url.searchParams.set("client_id", params.appId);
-    url.searchParams.set("client_secret", params.appSecret);
-    url.searchParams.set("code", params.code);
-    if (t.redirect_uri !== undefined) {
-      url.searchParams.set("redirect_uri", t.redirect_uri);
-    }
-    const res = await fetch(url.toString());
-    const json = await res.json();
-    if (res.ok && json?.access_token) {
-      console.log(`[embedded-signup] token exchange OK com redirect_uri=${t.label}`);
-      return json;
-    }
-    ultimoErro = json?.error?.message ?? `HTTP ${res.status}`;
-    console.warn(
-      `[embedded-signup] falha com redirect_uri=${t.label}: ${ultimoErro}`,
-    );
-    // Se o erro não é sobre redirect_uri (ex: code expirado), para na primeira
-    const msgLower = ultimoErro.toLowerCase();
-    const ehProblemaDeRedirect =
-      msgLower.includes("redirect_uri") ||
-      msgLower.includes("redirect uri") ||
-      msgLower.includes("validating verification code");
-    if (!ehProblemaDeRedirect) break;
+  const res = await fetch(url.toString());
+  const json = await res.json();
+  if (!res.ok || !json?.access_token) {
+    const msg = json?.error?.message ?? `HTTP ${res.status}`;
+    throw new Error(`Embedded Signup token exchange falhou: ${msg}`);
   }
+  return json;
+}
 
-  throw new Error(`Embedded Signup token exchange falhou: ${ultimoErro}`);
+/**
+ * Inscreve o app do Tech Provider para receber webhooks da WABA.
+ * Precisa ser chamado após o token exchange do Embedded Signup.
+ */
+export async function inscreverAppNaWaba(
+  accessToken: string,
+  wabaId: string,
+): Promise<{ success: boolean }> {
+  return metaPost<{ success: boolean }>(
+    `${wabaId}/subscribed_apps`,
+    accessToken,
+    {},
+  );
 }
 
 /**

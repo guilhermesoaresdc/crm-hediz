@@ -61,7 +61,7 @@ export function EmbeddedSignupButton({
     // Se já carregou em outra montagem, reutiliza
     if (window.FB) {
       try {
-        window.FB.init({ appId, xfbml: true, version: "v19.0" });
+        window.FB.init({ appId, xfbml: true, version: "v22.0" });
         setSdkPronto(true);
         return;
       } catch (err) {
@@ -72,7 +72,7 @@ export function EmbeddedSignupButton({
     // Define o hook que o SDK vai chamar ao carregar
     window.fbAsyncInit = () => {
       try {
-        window.FB?.init({ appId, xfbml: true, version: "v19.0" });
+        window.FB?.init({ appId, xfbml: true, version: "v22.0" });
         setSdkPronto(true);
         console.log("[EmbeddedSignup] SDK inicializado com appId", appId);
       } catch (err) {
@@ -132,10 +132,6 @@ export function EmbeddedSignupButton({
       const payload: Record<string, unknown> = {
         waba_id: signupInfoRef.current.waba_id,
         phone_number_id: signupInfoRef.current.phone_number_id,
-        // Meta exige que o redirect_uri no token exchange bata com o usado
-        // pelo JSSDK. Enviamos a origin pra o servidor poder tentar ela como
-        // fallback caso redirect_uri="" não funcione.
-        origin: window.location.origin,
       };
 
       if (resp.code) {
@@ -207,6 +203,11 @@ export function EmbeddedSignupButton({
         config_id: configId,
         response_type: "code",
         override_default_response_type: true,
+        // extras.sessionInfoVersion: 3 é exigido pela Meta pra que o postMessage
+        // WA_EMBEDDED_SIGNUP inclua waba_id/phone_number_id no evento FINISH.
+        extras: {
+          sessionInfoVersion: 3,
+        },
       },
     );
   }
