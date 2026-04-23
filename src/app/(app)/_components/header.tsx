@@ -50,7 +50,7 @@ export function Header({
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="text-sm font-medium text-foreground/90 flex-shrink-0 truncate">
+      <div className="text-base sm:text-sm font-semibold sm:font-medium text-foreground/90 flex-shrink-0 truncate">
         {titulo}
       </div>
 

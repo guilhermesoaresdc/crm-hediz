@@ -105,6 +105,13 @@
   /* Smooth transitions em temas */
   html {
     color-scheme: light;
+    /* Tipografia um pouco maior em mobile pra melhor leitura */
+    font-size: 17px;
+  }
+  @media (min-width: 640px) {
+    html {
+      font-size: 16px;
+    }
   }
   html.dark {
     color-scheme: dark;

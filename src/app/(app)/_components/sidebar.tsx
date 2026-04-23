@@ -107,8 +107,8 @@ function SidebarBody({
           )}
         </div>
         <div className="mt-3 px-2 py-2 rounded-md bg-muted/50 border">
-          <div className="text-xs font-semibold truncate">{imobiliariaNome}</div>
-          <div className="text-[11px] text-muted-foreground truncate">
+          <div className="text-sm font-semibold truncate">{imobiliariaNome}</div>
+          <div className="text-xs text-muted-foreground truncate">
             {userName} · {userRole}
           </div>
         </div>
@@ -123,7 +123,7 @@ function SidebarBody({
 
           return (
             <div key={section.label} className="px-2 mb-3">
-              <div className="px-2 mb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="px-2 mb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {section.label}
               </div>
               <ul className="space-y-0.5">
@@ -137,7 +137,7 @@ function SidebarBody({
                         href={item.href}
                         onClick={onNavigate}
                         className={cn(
-                          "flex items-center gap-2 rounded-md px-2 py-2 lg:py-1.5 text-sm transition-colors group",
+                          "flex items-center gap-2 rounded-md px-2 py-2 lg:py-1.5 transition-colors group",
                           active
                             ? "bg-primary/10 text-primary font-medium"
                             : "text-foreground/80 hover:bg-accent hover:text-foreground",
@@ -145,13 +145,13 @@ function SidebarBody({
                       >
                         <Icon
                           className={cn(
-                            "h-4 w-4 flex-shrink-0",
+                            "h-5 w-5 lg:h-4 lg:w-4 flex-shrink-0",
                             active ? "text-primary" : "text-muted-foreground",
                           )}
                         />
-                        <span className="truncate">{item.label}</span>
+                        <span className="truncate text-[15px] lg:text-sm">{item.label}</span>
                         {item.badge != null && (
-                          <span className="ml-auto text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                          <span className="ml-auto text-xs font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                             {item.badge}
                           </span>
                         )}
