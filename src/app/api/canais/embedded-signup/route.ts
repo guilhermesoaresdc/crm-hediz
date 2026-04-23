@@ -5,20 +5,24 @@ import {
   trocarEmbeddedSignupCode,
   trocarPorLongLived,
   listarTodosPhones,
+  inscreverAppNaWaba,
 } from "@/lib/integrations/meta-oauth";
 
 const schema = z.object({
   // code flow (default do Embedded Signup v3)
   code: z.string().optional(),
-  // token flow (fallback)
+  // token flow (fallback para apps ainda sem response_type=code)
   access_token: z.string().optional(),
   waba_id: z.string().optional(),
   phone_number_id: z.string().optional(),
 });
 
 /**
- * Recebe o code do FB.login com config_id (Embedded Signup com Coexistence),
- * troca por token, descobre WABA + phone, e cria o canal automaticamente.
+ * Recebe o code do FB.login com config_id (Embedded Signup) e:
+ *   1) Troca code por Business Integration token (long-lived por default)
+ *   2) Descobre WABAs/phones acessíveis
+ *   3) Inscreve nosso app para receber webhooks de cada WABA nova
+ *   4) Cria canais_whatsapp no Supabase
  */
 export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json());
@@ -61,20 +65,17 @@ export async function POST(req: Request) {
     let accessToken: string;
 
     if (parsed.data.code) {
-      // Code flow: troca code → short-lived → long-lived
-      const short = await trocarEmbeddedSignupCode({
+      // Code flow oficial: Embedded Signup já retorna Business Integration
+      // System User token — long-lived por definição. NÃO trocamos por
+      // long-lived de novo (isso quebraria o token de integração).
+      const resp = await trocarEmbeddedSignupCode({
         appId,
         appSecret,
         code: parsed.data.code,
       });
-      const long = await trocarPorLongLived({
-        appId,
-        appSecret,
-        shortToken: short.access_token,
-      });
-      accessToken = long.access_token;
+      accessToken = resp.access_token;
     } else {
-      // Token flow: upgrade direto pra long-lived
+      // Token flow legado: upgrade do short-lived user token para long-lived
       const long = await trocarPorLongLived({
         appId,
         appSecret,
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
     // Descobre os phones disponíveis no token
     let phones = await listarTodosPhones(accessToken);
 
-    // Se o callback do FB.login forneceu IDs específicos, filtra
+    // Se o postMessage do FB.login entregou IDs específicos, filtra
     if (parsed.data.waba_id) {
       phones = phones.filter((p) => p.waba_id === parsed.data.waba_id);
     }
@@ -98,16 +99,29 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "Nenhum número WhatsApp encontrado. Verifique se você completou o Embedded Signup corretamente.",
+            "Nenhum número WhatsApp encontrado. Verifique se você completou o Embedded Signup corretamente e que o número foi associado a um WhatsApp Business Account.",
         },
         { status: 404 },
       );
     }
 
-    // 4. Cria canais pra cada phone (geralmente é só 1, mas suporta N)
+    // Inscreve o app pra receber webhooks de cada WABA nova — idempotente
+    const wabasUnicas = Array.from(new Set(phones.map((p) => p.waba_id)));
+    for (const wabaId of wabasUnicas) {
+      try {
+        await inscreverAppNaWaba(accessToken, wabaId);
+      } catch (err) {
+        // Log mas não falha — o usuário ainda consegue enviar; webhook entra depois
+        console.warn(
+          `[embedded-signup] inscreverAppNaWaba(${wabaId}) falhou:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+
+    // Cria canais pra cada phone (geralmente 1, mas suporta N)
     const criados: { id: string; nome: string; phone: string }[] = [];
     for (const p of phones) {
-      // Checa duplicidade
       const { data: existente } = await supabase
         .from("canais_whatsapp")
         .select("id")

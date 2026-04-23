@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Plus,
   Trash2,
-  Settings2,
+  Settings,
   Phone,
   Facebook,
   PhoneCall,
@@ -15,8 +15,12 @@ import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
 import { EmbeddedSignupButton } from "@/components/embedded-signup-button";
+import { CanalConfigModal } from "./_components/canal-config-modal";
+import {
+  FinalizarConfigModal,
+  type CanalCriado,
+} from "./_components/finalizar-config-modal";
 
 export default function CanaisPage() {
   const utils = api.useUtils();
@@ -25,9 +29,6 @@ export default function CanaisPage() {
   const { data: config } = api.config.obter.useQuery();
 
   const deletar = api.canal.deletar.useMutation({
-    onSuccess: () => utils.canal.listar.invalidate(),
-  });
-  const atualizar = api.canal.atualizar.useMutation({
     onSuccess: () => utils.canal.listar.invalidate(),
   });
 
@@ -39,19 +40,18 @@ export default function CanaisPage() {
     !!features?.embedded_config_id;
 
   const [signupMsg, setSignupMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [canalConfigId, setCanalConfigId] = useState<string | null>(null);
+  const [finalizarCanais, setFinalizarCanais] = useState<CanalCriado[] | null>(null);
 
-  function handleSignupSuccess(criados: Array<{ id: string; nome: string; phone: string }>) {
+  function handleSignupSuccess(criados: CanalCriado[]) {
     if (criados.length === 0) {
       setSignupMsg({
         ok: false,
         text: "Nenhum canal novo criado (talvez já estavam conectados).",
       });
     } else {
-      setSignupMsg({
-        ok: true,
-        text: `✓ ${criados.length} canal(is) criado(s): ${criados.map((c) => c.nome).join(", ")}`,
-      });
       utils.canal.listar.invalidate();
+      setFinalizarCanais(criados);
     }
   }
 
@@ -234,24 +234,23 @@ export default function CanaisPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() =>
-                            atualizar.mutate({ id: c.id, ativo: !c.ativo })
-                          }
-                          title={c.ativo ? "Desativar" : "Reativar"}
-                        >
-                          <Settings2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
                           className="text-destructive hover:bg-destructive/10"
                           onClick={() => {
                             if (confirm(`Remover o canal "${c.nome}"?`)) {
                               deletar.mutate({ id: c.id });
                             }
                           }}
+                          title="Remover canal"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setCanalConfigId(c.id)}
+                          title="Configurações"
+                        >
+                          <Settings className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </td>
@@ -261,6 +260,24 @@ export default function CanaisPage() {
             </table>
           </CardContent>
         </Card>
+      )}
+
+      {finalizarCanais && (
+        <FinalizarConfigModal
+          canais={finalizarCanais}
+          onClose={() => setFinalizarCanais(null)}
+          onConfigurar={(id) => {
+            setFinalizarCanais(null);
+            setCanalConfigId(id);
+          }}
+        />
+      )}
+
+      {canalConfigId && (
+        <CanalConfigModal
+          canalId={canalConfigId}
+          onClose={() => setCanalConfigId(null)}
+        />
       )}
     </div>
   );
