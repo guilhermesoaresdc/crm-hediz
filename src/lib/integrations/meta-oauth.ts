@@ -418,6 +418,82 @@ export async function registrarNumeroCloudAPI(
   );
 }
 
+// =============================================================================
+// WhatsApp Business Profile (editar perfil do número via Graph API)
+// =============================================================================
+
+export type WhatsappBusinessProfile = {
+  about?: string;
+  address?: string;
+  description?: string;
+  email?: string;
+  profile_picture_url?: string;
+  vertical?: string;
+  websites?: string[];
+  messaging_product?: string;
+};
+
+/**
+ * Lê o perfil WhatsApp Business de um número.
+ * Campos retornados pela Graph API podem vir ausentes quando nunca foram preenchidos.
+ */
+export async function obterWhatsappBusinessProfile(
+  accessToken: string,
+  phoneNumberId: string,
+): Promise<WhatsappBusinessProfile> {
+  const res = await graphGet<{ data: WhatsappBusinessProfile[] }>(
+    `${phoneNumberId}/whatsapp_business_profile`,
+    accessToken,
+    {
+      fields: "about,address,description,email,profile_picture_url,vertical,websites",
+    },
+  ).catch(() => ({ data: [] as WhatsappBusinessProfile[] }));
+  return res.data?.[0] ?? {};
+}
+
+/**
+ * Atualiza o perfil WhatsApp Business.
+ * Só inclui campos não-nulos no body pra não apagar dados existentes.
+ */
+export async function atualizarWhatsappBusinessProfile(
+  accessToken: string,
+  phoneNumberId: string,
+  patch: Partial<Omit<WhatsappBusinessProfile, "profile_picture_url" | "messaging_product">>,
+) {
+  const body: Record<string, unknown> = { messaging_product: "whatsapp" };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v !== undefined && v !== null) body[k] = v;
+  }
+  return metaPost<{ success: boolean }>(
+    `${phoneNumberId}/whatsapp_business_profile`,
+    accessToken,
+    body,
+  );
+}
+
+/**
+ * Busca detalhes da WABA (status, timezone, etc) e do BM dono.
+ */
+export async function obterDetalhesWaba(accessToken: string, wabaId: string) {
+  const waba = await graphGet<{
+    id: string;
+    name?: string;
+    account_review_status?: string;
+    business_verification_status?: string;
+    currency?: string;
+    timezone_id?: string;
+    owner_business_info?: { id: string; name: string };
+  }>(
+    wabaId,
+    accessToken,
+    {
+      fields:
+        "id,name,account_review_status,business_verification_status,currency,timezone_id,owner_business_info",
+    },
+  ).catch(() => null);
+  return waba;
+}
+
 /**
  * Embedded Signup com Coexistence: troca o code que vem do FB.login
  * (com config_id) por um access token e dados do WhatsApp configurado.

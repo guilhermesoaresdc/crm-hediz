@@ -10,6 +10,9 @@ import {
   requisitarCodigoVerificacao,
   verificarCodigoNumero,
   registrarNumeroCloudAPI,
+  obterWhatsappBusinessProfile,
+  atualizarWhatsappBusinessProfile,
+  obterDetalhesWaba,
 } from "@/lib/integrations/meta-oauth";
 
 export const canalRouter = createTRPCRouter({
@@ -146,6 +149,9 @@ export const canalRouter = createTRPCRouter({
         equipe_id: z.string().uuid().nullable().optional(),
         corretor_id: z.string().uuid().nullable().optional(),
         ativo: z.boolean().optional(),
+        fonte_lead_padrao: z.string().nullable().optional(),
+        importar_contatos: z.boolean().optional(),
+        limite_mensagens_mensal: z.number().int().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -159,6 +165,126 @@ export const canalRouter = createTRPCRouter({
         .single();
       if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       return data;
+    }),
+
+  /**
+   * Retorna um canal com todos os metadados necessários para o modal de configuração.
+   * Também sincroniza dados da WABA/BM da Meta no primeiro carregamento do dia.
+   */
+  obterDetalhes: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { data: canal, error } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select(
+          "id, nome, whatsapp_business_account_id, whatsapp_business_account_nome, whatsapp_phone_number_id, whatsapp_phone_display, verified_name, quality_rating, equipe_id, corretor_id, ativo, conectado_em, access_token, fonte_lead_padrao, importar_contatos, limite_mensagens_mensal, meta_business_id, meta_business_nome, meta_business_status, waba_status, ultimo_sync_perfil_em",
+        )
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (error || !canal)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Canal não encontrado" });
+
+      // Sincroniza metadados da WABA/BM se não foi feito hoje
+      const hoje = new Date().toISOString().slice(0, 10);
+      const ultimoSync = canal.ultimo_sync_perfil_em?.slice(0, 10);
+      if (ultimoSync !== hoje) {
+        try {
+          const waba = await obterDetalhesWaba(
+            canal.access_token,
+            canal.whatsapp_business_account_id,
+          );
+          if (waba) {
+            const bmId = waba.owner_business_info?.id ?? null;
+            const bmNome = waba.owner_business_info?.name ?? null;
+            await ctx.supabase
+              .from("canais_whatsapp")
+              .update({
+                meta_business_id: bmId,
+                meta_business_nome: bmNome,
+                meta_business_status: waba.business_verification_status ?? null,
+                waba_status: waba.account_review_status ?? null,
+                ultimo_sync_perfil_em: new Date().toISOString(),
+              })
+              .eq("id", canal.id);
+            canal.meta_business_id = bmId;
+            canal.meta_business_nome = bmNome;
+            canal.meta_business_status = waba.business_verification_status ?? null;
+            canal.waba_status = waba.account_review_status ?? null;
+          }
+        } catch {
+          /* ignora falha de sync — devolve o que já está salvo */
+        }
+      }
+
+      // Nunca expõe o access_token pro cliente
+      const { access_token, ...safe } = canal;
+      return safe;
+    }),
+
+  /**
+   * Lê o perfil WhatsApp Business (campos editáveis: nome, sobre, endereço, etc).
+   */
+  obterPerfilWhatsapp: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("whatsapp_phone_number_id, access_token")
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal) throw new TRPCError({ code: "NOT_FOUND" });
+      try {
+        return await obterWhatsappBusinessProfile(
+          canal.access_token,
+          canal.whatsapp_phone_number_id,
+        );
+      } catch (err) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
+
+  /**
+   * Atualiza o perfil WhatsApp Business via Graph API.
+   * Campos editáveis: about, address, description, email, vertical, websites.
+   */
+  atualizarPerfilWhatsapp: adminProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        about: z.string().max(139).optional(),
+        address: z.string().max(256).optional(),
+        description: z.string().max(512).optional(),
+        email: z.string().email().or(z.literal("")).optional(),
+        vertical: z.string().optional(),
+        websites: z.array(z.string().url()).max(2).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("whatsapp_phone_number_id, access_token")
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal) throw new TRPCError({ code: "NOT_FOUND" });
+      const { id: _id, ...patch } = input;
+      try {
+        return await atualizarWhatsappBusinessProfile(
+          canal.access_token,
+          canal.whatsapp_phone_number_id,
+          patch,
+        );
+      } catch (err) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     }),
 
   deletar: adminProcedure
