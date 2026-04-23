@@ -132,6 +132,10 @@ export function EmbeddedSignupButton({
       const payload: Record<string, unknown> = {
         waba_id: signupInfoRef.current.waba_id,
         phone_number_id: signupInfoRef.current.phone_number_id,
+        // Meta exige que o redirect_uri no token exchange bata com o usado
+        // pelo JSSDK. Enviamos a origin pra o servidor poder tentar ela como
+        // fallback caso redirect_uri="" não funcione.
+        origin: window.location.origin,
       };
 
       if (resp.code) {

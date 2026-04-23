@@ -14,6 +14,9 @@ const schema = z.object({
   access_token: z.string().optional(),
   waba_id: z.string().optional(),
   phone_number_id: z.string().optional(),
+  // origin da página onde o FB.login foi disparado — usado como fallback
+  // de redirect_uri no token exchange
+  origin: z.string().optional(),
 });
 
 /**
@@ -66,6 +69,7 @@ export async function POST(req: Request) {
         appId,
         appSecret,
         code: parsed.data.code,
+        origin: parsed.data.origin,
       });
       const long = await trocarPorLongLived({
         appId,

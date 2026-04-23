@@ -498,30 +498,58 @@ export async function obterDetalhesWaba(accessToken: string, wabaId: string) {
  * Embedded Signup com Coexistence: troca o code que vem do FB.login
  * (com config_id) por um access token e dados do WhatsApp configurado.
  *
- * IMPORTANTE: quando o code vem do JSSDK, o redirect_uri DEVE ser
- * string vazia — a Meta usa um redirect interno do SDK e qualquer
- * outro valor resulta em "Error validating verification code".
+ * Meta exige que `redirect_uri` seja idêntico ao usado internamente pelo
+ * JSSDK, mas isso varia entre versões do SDK / Graph API: pode ser string
+ * vazia, pode ser a origin da página, ou pode precisar ser omitido.
+ * Tentamos cada variante e retornamos a primeira que funciona.
  */
 export async function trocarEmbeddedSignupCode(params: {
   appId: string;
   appSecret: string;
   code: string;
+  origin?: string;
 }): Promise<{
   access_token: string;
   expires_in?: number;
 }> {
-  const url = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
-  url.searchParams.set("client_id", params.appId);
-  url.searchParams.set("client_secret", params.appSecret);
-  url.searchParams.set("code", params.code);
-  url.searchParams.set("redirect_uri", ""); // Obrigatório vazio pro JSSDK
-  const res = await fetch(url.toString());
-  const json = await res.json();
-  if (!res.ok) {
-    const msg = json?.error?.message ?? `HTTP ${res.status}`;
-    throw new Error(`Embedded Signup token exchange falhou: ${msg}`);
+  const tentativas: Array<{ label: string; redirect_uri?: string }> = [
+    { label: "empty", redirect_uri: "" },
+    { label: "omitted" },
+  ];
+  if (params.origin) {
+    tentativas.push({ label: "origin", redirect_uri: params.origin });
+    tentativas.push({ label: "origin/", redirect_uri: `${params.origin}/` });
   }
-  return json;
+
+  let ultimoErro = "Nenhuma tentativa executada";
+  for (const t of tentativas) {
+    const url = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
+    url.searchParams.set("client_id", params.appId);
+    url.searchParams.set("client_secret", params.appSecret);
+    url.searchParams.set("code", params.code);
+    if (t.redirect_uri !== undefined) {
+      url.searchParams.set("redirect_uri", t.redirect_uri);
+    }
+    const res = await fetch(url.toString());
+    const json = await res.json();
+    if (res.ok && json?.access_token) {
+      console.log(`[embedded-signup] token exchange OK com redirect_uri=${t.label}`);
+      return json;
+    }
+    ultimoErro = json?.error?.message ?? `HTTP ${res.status}`;
+    console.warn(
+      `[embedded-signup] falha com redirect_uri=${t.label}: ${ultimoErro}`,
+    );
+    // Se o erro não é sobre redirect_uri (ex: code expirado), para na primeira
+    const msgLower = ultimoErro.toLowerCase();
+    const ehProblemaDeRedirect =
+      msgLower.includes("redirect_uri") ||
+      msgLower.includes("redirect uri") ||
+      msgLower.includes("validating verification code");
+    if (!ehProblemaDeRedirect) break;
+  }
+
+  throw new Error(`Embedded Signup token exchange falhou: ${ultimoErro}`);
 }
 
 /**
