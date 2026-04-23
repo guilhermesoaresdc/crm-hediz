@@ -2,7 +2,11 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, adminProcedure, protectedProcedure } from "../trpc";
 import { testarCredenciaisMeta, sincronizarCampanhasImobiliaria, sincronizarCustosImobiliaria } from "@/lib/integrations/meta-graph";
-import { listarAssets, listarPixelsDoAdAccount } from "@/lib/integrations/meta-oauth";
+import {
+  listarBusinesses,
+  listarAssetsDoBusiness,
+  listarPixelsDoAdAccount,
+} from "@/lib/integrations/meta-oauth";
 import { sendInngestEvent } from "@/lib/inngest/client";
 
 export const configRouter = createTRPCRouter({
@@ -82,10 +86,9 @@ export const configRouter = createTRPCRouter({
     }),
 
   /**
-   * Lista businesses, ad accounts e pages do user autenticado via OAuth.
-   * Chamado pela /integracoes/selecionar após callback do OAuth.
+   * Step 1 do wizard: lista apenas os Business Managers do user.
    */
-  listarAssetsMeta: adminProcedure.query(async ({ ctx }) => {
+  listarBusinessesMeta: adminProcedure.query(async ({ ctx }) => {
     const { data: config } = await ctx.supabase
       .from("configuracoes_imobiliaria")
       .select("meta_access_token")
@@ -99,9 +102,26 @@ export const configRouter = createTRPCRouter({
       });
     }
 
-    const assets = await listarAssets(config.meta_access_token);
-    return assets;
+    const businesses = await listarBusinesses(config.meta_access_token);
+    return { businesses };
   }),
+
+  /**
+   * Steps 2-3 do wizard: lista ad accounts e pages DA BM selecionada.
+   */
+  listarAssetsDoBusinessMeta: adminProcedure
+    .input(z.object({ business_id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta ausente" });
+      }
+      return listarAssetsDoBusiness(config.meta_access_token, input.business_id);
+    }),
 
   listarPixelsMeta: adminProcedure
     .input(z.object({ ad_account_id: z.string() }))

@@ -94,30 +94,71 @@ export type MetaAdAccount = {
 export type MetaPage = { id: string; name: string; access_token?: string };
 export type MetaPixel = { id: string; name: string };
 
-export async function listarAssets(accessToken: string) {
-  const [businesses, adAccounts, pages] = await Promise.all([
-    graphGet<{ data: MetaBusiness[] }>(
-      "me/businesses",
-      accessToken,
-      { fields: "id,name", limit: 100 },
-    ).catch(() => ({ data: [] as MetaBusiness[] })),
+/**
+ * Lista só os businesses (etapa 1 do wizard).
+ * Ad accounts e pages são filtradas depois por business via listarAssetsDoBusiness.
+ */
+export async function listarBusinesses(accessToken: string) {
+  const res = await graphGet<{ data: MetaBusiness[] }>(
+    "me/businesses",
+    accessToken,
+    { fields: "id,name", limit: 100 },
+  ).catch(() => ({ data: [] as MetaBusiness[] }));
+  return res.data;
+}
+
+/**
+ * Retorna ad accounts e pages da BM selecionada (owned + client).
+ * Unifica em uma única lista por tipo, deduplicando por id.
+ */
+export async function listarAssetsDoBusiness(
+  accessToken: string,
+  businessId: string,
+) {
+  const fieldsAd = "id,account_id,name,account_status,currency";
+  const fieldsPage = "id,name,access_token";
+
+  const [owned, client, ownedPages, clientPages] = await Promise.all([
     graphGet<{ data: MetaAdAccount[] }>(
-      "me/adaccounts",
+      `${businessId}/owned_ad_accounts`,
       accessToken,
-      { fields: "id,account_id,name,account_status,currency", limit: 100 },
+      { fields: fieldsAd, limit: 100 },
+    ).catch(() => ({ data: [] as MetaAdAccount[] })),
+    graphGet<{ data: MetaAdAccount[] }>(
+      `${businessId}/client_ad_accounts`,
+      accessToken,
+      { fields: fieldsAd, limit: 100 },
     ).catch(() => ({ data: [] as MetaAdAccount[] })),
     graphGet<{ data: MetaPage[] }>(
-      "me/accounts",
+      `${businessId}/owned_pages`,
       accessToken,
-      { fields: "id,name,access_token", limit: 100 },
+      { fields: fieldsPage, limit: 100 },
+    ).catch(() => ({ data: [] as MetaPage[] })),
+    graphGet<{ data: MetaPage[] }>(
+      `${businessId}/client_pages`,
+      accessToken,
+      { fields: fieldsPage, limit: 100 },
     ).catch(() => ({ data: [] as MetaPage[] })),
   ]);
 
-  return {
-    businesses: businesses.data,
-    ad_accounts: adAccounts.data,
-    pages: pages.data,
+  const dedupe = <T extends { id: string }>(arrays: T[][]): T[] => {
+    const map = new Map<string, T>();
+    for (const arr of arrays) for (const item of arr) map.set(item.id, item);
+    return Array.from(map.values());
   };
+
+  return {
+    ad_accounts: dedupe([owned.data, client.data]),
+    pages: dedupe([ownedPages.data, clientPages.data]),
+  };
+}
+
+/**
+ * @deprecated Use listarBusinesses + listarAssetsDoBusiness para filtrar por BM.
+ */
+export async function listarAssets(accessToken: string) {
+  const businesses = await listarBusinesses(accessToken);
+  return { businesses, ad_accounts: [] as MetaAdAccount[], pages: [] as MetaPage[] };
 }
 
 export async function listarPixelsDoAdAccount(accessToken: string, adAccountId: string) {

@@ -16,7 +16,11 @@ type Step = "business" | "ad_account" | "page" | "pixel" | "capi" | "concluir";
 
 export default function SelecionarMetaAssetsPage() {
   const router = useRouter();
-  const { data: assets, isLoading, error } = api.config.listarAssetsMeta.useQuery();
+  const {
+    data: businessesData,
+    isLoading,
+    error,
+  } = api.config.listarBusinessesMeta.useQuery();
   const [step, setStep] = useState<Step>("business");
 
   const [selecao, setSelecao] = useState({
@@ -31,6 +35,13 @@ export default function SelecionarMetaAssetsPage() {
     meta_capi_token: "",
   });
 
+  // Ad accounts + pages da BM selecionada
+  const { data: businessAssets, isLoading: assetsLoading } =
+    api.config.listarAssetsDoBusinessMeta.useQuery(
+      { business_id: selecao.meta_business_id },
+      { enabled: !!selecao.meta_business_id },
+    );
+
   const { data: pixels, isLoading: pixelsLoading } = api.config.listarPixelsMeta.useQuery(
     { ad_account_id: selecao.meta_ad_account_id },
     { enabled: !!selecao.meta_ad_account_id && step !== "business" && step !== "ad_account" },
@@ -42,15 +53,15 @@ export default function SelecionarMetaAssetsPage() {
     },
   });
 
-  // Auto-avança para primeira etapa viável
+  // Auto-avança se user só tem 1 business
   useEffect(() => {
-    if (!assets) return;
-    if (assets.businesses.length === 1) {
-      const b = assets.businesses[0];
+    if (!businessesData?.businesses) return;
+    if (businessesData.businesses.length === 1) {
+      const b = businessesData.businesses[0];
       setSelecao((s) => ({ ...s, meta_business_id: b.id, meta_business_nome: b.name }));
       setStep("ad_account");
     }
-  }, [assets]);
+  }, [businessesData]);
 
   if (isLoading) {
     return (
@@ -77,7 +88,10 @@ export default function SelecionarMetaAssetsPage() {
     );
   }
 
-  if (!assets) return null;
+  if (!businessesData) return null;
+  const businesses = businessesData.businesses;
+  const adAccounts = businessAssets?.ad_accounts ?? [];
+  const pages = businessAssets?.pages ?? [];
 
   const steps: { id: Step; label: string }[] = [
     { id: "business", label: "Business" },
@@ -146,13 +160,13 @@ export default function SelecionarMetaAssetsPage() {
             <CardTitle className="text-base">Escolha o Business</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {assets.businesses.length === 0 ? (
+            {businesses.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nenhum Business Manager encontrado. Verifique se seu usuário Facebook tem
                 acesso a algum Business Manager.
               </p>
             ) : (
-              assets.businesses.map((b) => (
+              businesses.map((b) => (
                 <button
                   key={b.id}
                   onClick={() => {
@@ -187,12 +201,17 @@ export default function SelecionarMetaAssetsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {assets.ad_accounts.length === 0 ? (
+            {assetsLoading ? (
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Buscando contas de anúncios da BM...
+              </div>
+            ) : adAccounts.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nenhuma ad account acessível. Verifique permissões no Business Manager.
+                Nenhuma ad account dessa BM. Verifique se ela possui contas próprias ou
+                clientes vinculados no Business Manager.
               </p>
             ) : (
-              assets.ad_accounts.map((a) => (
+              adAccounts.map((a) => (
                 <button
                   key={a.id}
                   onClick={() => {
@@ -241,12 +260,12 @@ export default function SelecionarMetaAssetsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {assets.pages.length === 0 ? (
+            {pages.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nenhuma página acessível. Você pode pular.
+                Nenhuma página dessa BM. Você pode pular.
               </p>
             ) : (
-              assets.pages.map((p) => (
+              pages.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => {
@@ -331,15 +350,51 @@ export default function SelecionarMetaAssetsPage() {
       {step === "capi" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              Conversion API Token (opcional)
-            </CardTitle>
-            <div className="text-xs text-muted-foreground">
-              Se deixar vazio, usamos o access token do login. Recomendado: gerar um
-              token dedicado de system user no Events Manager pra CAPI.
-            </div>
+            <CardTitle className="text-base">Conversion API Token (opcional)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
+            <div className="rounded-md bg-muted/50 border p-3 text-xs space-y-2">
+              <div>
+                <span className="font-medium text-foreground">Pra que serve?</span>{" "}
+                O CAPI (Conversion API) envia eventos de Lead e Purchase direto do
+                nosso servidor pro Meta — mesmo quando o pixel do navegador é
+                bloqueado (iOS 14+, ad blockers). Isso é o que permite o Meta atribuir
+                corretamente a venda à campanha e otimizar os anúncios pra leads que
+                realmente viram venda.
+              </div>
+              <div>
+                <span className="font-medium text-foreground">Onde pegar:</span>
+                <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                  <li>
+                    Abre{" "}
+                    <a
+                      href="https://business.facebook.com/events_manager2/list/pixel"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      Events Manager
+                    </a>
+                  </li>
+                  <li>Seleciona o Pixel que você acabou de escolher na etapa anterior</li>
+                  <li>
+                    Vai na aba <strong>Configurações</strong> → rola até{" "}
+                    <strong>Conversions API</strong>
+                  </li>
+                  <li>
+                    Clica em <strong>Gerar token de acesso</strong> → confirma senha FB →
+                    copia o token
+                  </li>
+                  <li>Cola aqui abaixo</li>
+                </ol>
+              </div>
+              <div>
+                <span className="font-medium text-foreground">Se pular:</span> o
+                sistema usa o mesmo token de login (funciona mas é menos seguro — o
+                dedicado é recomendado pra produção).
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label>CAPI Access Token (opcional)</Label>
               <Input
@@ -348,7 +403,7 @@ export default function SelecionarMetaAssetsPage() {
                 onChange={(e) =>
                   setSelecao((s) => ({ ...s, meta_capi_token: e.target.value }))
                 }
-                placeholder="Deixe vazio pra usar o token do login"
+                placeholder="Cole o token do Events Manager — ou deixe vazio"
               />
             </div>
             <Button className="w-full" onClick={() => setStep("concluir")}>
