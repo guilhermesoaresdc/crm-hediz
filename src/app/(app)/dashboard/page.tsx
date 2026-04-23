@@ -170,9 +170,11 @@ function KpiCard({
 }) {
   return (
     <Card className={emphasize ? "border-primary" : undefined}>
-      <CardContent className="pt-6">
-        <div className="text-xs text-muted-foreground uppercase tracking-wide">{label}</div>
-        <div className="text-2xl font-bold mt-1">{loading ? "..." : value}</div>
+      <CardContent className="pt-5 sm:pt-6">
+        <div className="text-[13px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+          {label}
+        </div>
+        <div className="text-2xl sm:text-2xl font-bold mt-1">{loading ? "..." : value}</div>
       </CardContent>
     </Card>
   );
