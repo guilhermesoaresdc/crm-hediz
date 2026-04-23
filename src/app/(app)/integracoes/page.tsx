@@ -45,9 +45,9 @@ export default function IntegracoesPage() {
   }, [metaError, metaConectado]);
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-3xl font-bold">Integrações</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Integrações</h1>
         <p className="text-muted-foreground text-sm">
           Conecte Meta Ads, WhatsApp Business e sincronize campanhas.
         </p>

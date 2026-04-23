@@ -46,9 +46,9 @@ export default function RastreamentoCampanhasPage() {
         : `${equipeIds.length} equipes selecionadas`;
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Rastreamento Meta</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Rastreamento Meta</h1>
         <p className="text-muted-foreground text-sm">
           Atribuição de ponta a ponta: do anúncio até a venda, com ROAS real (inclui fee da agência).
         </p>
@@ -57,19 +57,19 @@ export default function RastreamentoCampanhasPage() {
       {/* Filtros */}
       <section className="space-y-3">
         <div className="text-sm font-medium">Filtros</div>
-        <div className="flex flex-wrap gap-3 relative">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 relative">
           {/* Multi-select equipes */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setDropdownEquipeOpen((x) => !x)}
-              className="flex items-center gap-2 min-w-[220px] justify-between rounded-md border border-input bg-background px-3 h-10 text-sm hover:bg-accent"
+              className="flex w-full sm:min-w-[220px] items-center gap-2 justify-between rounded-md border border-input bg-background px-3 h-10 text-sm hover:bg-accent"
             >
-              <span>{equipesSelLabel}</span>
-              <ChevronDown className="h-4 w-4 opacity-60" />
+              <span className="truncate">{equipesSelLabel}</span>
+              <ChevronDown className="h-4 w-4 opacity-60 flex-shrink-0" />
             </button>
             {dropdownEquipeOpen && (
-              <div className="absolute z-20 mt-1 w-full min-w-[220px] rounded-md border bg-card shadow-lg p-2 space-y-1">
+              <div className="absolute z-20 mt-1 w-full min-w-[220px] max-h-[50vh] overflow-y-auto rounded-md border bg-card shadow-lg p-2 space-y-1">
                 <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded cursor-pointer text-sm">
                   <input
                     type="checkbox"
@@ -101,7 +101,7 @@ export default function RastreamentoCampanhasPage() {
 
           {/* Tipo origem */}
           <select
-            className="rounded-md border border-input bg-background px-3 h-10 text-sm min-w-[180px]"
+            className="rounded-md border border-input bg-background px-3 h-10 text-sm w-full sm:min-w-[180px] sm:w-auto"
             value={tipo}
             onChange={(e) => setTipo(e.target.value as Tipo)}
           >

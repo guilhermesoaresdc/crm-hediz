@@ -24,8 +24,8 @@ export default function NovoLeadPage() {
   });
 
   return (
-    <div className="p-8 max-w-xl">
-      <h1 className="text-3xl font-bold mb-6">Novo lead</h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-xl">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6">Novo lead</h1>
       <Card>
         <CardHeader>
           <CardTitle>Dados do lead</CardTitle>

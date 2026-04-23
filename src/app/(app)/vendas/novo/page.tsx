@@ -27,7 +27,7 @@ export default function NovaVendaPage() {
 
   if (!leadId) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <p className="text-destructive">
           Acesse esta página a partir de um lead vendido (botão "Registrar venda").
         </p>
@@ -36,8 +36,8 @@ export default function NovaVendaPage() {
   }
 
   return (
-    <div className="p-8 max-w-xl">
-      <h1 className="text-3xl font-bold mb-6">Registrar venda</h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-xl">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6">Registrar venda</h1>
       <p className="text-sm text-muted-foreground mb-4">
         Ao salvar, o evento Purchase será enviado ao Meta via Conversion API
         usando o timestamp original do lead — fechando o loop de atribuição.

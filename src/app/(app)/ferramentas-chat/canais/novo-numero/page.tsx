@@ -93,7 +93,7 @@ export default function NovoNumeroPage() {
 
   if (loadingBus) {
     return (
-      <div className="p-8 max-w-3xl">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
           Carregando...
@@ -103,7 +103,7 @@ export default function NovoNumeroPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl space-y-6">
       <div className="flex items-center gap-2">
         <Link
           href="/ferramentas-chat/canais"
@@ -119,7 +119,7 @@ export default function NovoNumeroPage() {
           <PhoneCall className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold">Cadastrar número novo</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Cadastrar número novo</h1>
           <p className="text-muted-foreground text-sm">
             Adicione um número que ainda não está na sua WABA. Tudo direto pelo CRM.
           </p>

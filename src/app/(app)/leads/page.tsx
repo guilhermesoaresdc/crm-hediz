@@ -36,25 +36,26 @@ export default function LeadsPage() {
   });
 
   return (
-    <div className="p-8 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4">
+      <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold">Leads</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Leads</h1>
+          <p className="text-muted-foreground text-sm">
             {data ? `${data.total} leads` : "Carregando..."}
           </p>
         </div>
         <Link href="/leads/novo">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Novo lead
+            <span className="hidden sm:inline">Novo lead</span>
+            <span className="sm:hidden">Novo</span>
           </Button>
         </Link>
       </div>
 
       <Card>
         <CardContent className="pt-6">
-          <div className="flex gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -65,7 +66,7 @@ export default function LeadsPage() {
               />
             </div>
             <select
-              className="rounded-md border border-input bg-background px-3 text-sm"
+              className="rounded-md border border-input bg-background px-3 h-10 text-sm"
               value={status ?? ""}
               onChange={(e) => setStatus(e.target.value || undefined)}
             >
@@ -88,51 +89,91 @@ export default function LeadsPage() {
           ) : !data?.leads.length ? (
             <p className="text-muted-foreground text-center py-8">Nenhum lead encontrado.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="py-2">Nome</th>
-                    <th className="py-2">WhatsApp</th>
-                    <th className="py-2">Status</th>
-                    <th className="py-2">Corretor</th>
-                    <th className="py-2">Origem</th>
-                    <th className="py-2">Criado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.leads.map((lead: any) => (
-                    <tr
-                      key={lead.id}
-                      className="border-b hover:bg-accent cursor-pointer"
-                      onClick={() => (window.location.href = `/leads/${lead.id}`)}
-                    >
-                      <td className="py-3 font-medium">
-                        <Link href={`/leads/${lead.id}`} className="hover:underline">
-                          {lead.nome}
-                        </Link>
-                      </td>
-                      <td className="py-3 text-muted-foreground">{lead.whatsapp}</td>
-                      <td className="py-3">
+            <>
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {data.leads.map((lead: any) => (
+                  <Link
+                    key={lead.id}
+                    href={`/leads/${lead.id}`}
+                    className="block rounded-md border p-3 hover:bg-accent transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{lead.nome}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {lead.whatsapp}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <Badge variant={statusColors[lead.status] ?? "default"}>
                           {lead.status.replace(/_/g, " ")}
                         </Badge>
-                        {lead.em_bolsao && (
-                          <Badge variant="warning" className="ml-1">
-                            bolsão
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="py-3">{lead.corretor?.nome ?? "—"}</td>
-                      <td className="py-3 text-muted-foreground">
+                        {lead.em_bolsao && <Badge variant="warning">bolsão</Badge>}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground gap-2">
+                      <span className="truncate">
+                        {lead.corretor?.nome ?? "—"} ·{" "}
                         {lead.campanha?.nome ?? lead.origem ?? "—"}
-                      </td>
-                      <td className="py-3 text-muted-foreground">{formatDate(lead.created_at)}</td>
+                      </span>
+                      <span className="flex-shrink-0">{formatDate(lead.created_at)}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Desktop/tablet table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs text-muted-foreground">
+                      <th className="py-2">Nome</th>
+                      <th className="py-2">WhatsApp</th>
+                      <th className="py-2">Status</th>
+                      <th className="py-2">Corretor</th>
+                      <th className="py-2">Origem</th>
+                      <th className="py-2">Criado</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {data.leads.map((lead: any) => (
+                      <tr
+                        key={lead.id}
+                        className="border-b hover:bg-accent cursor-pointer"
+                        onClick={() => (window.location.href = `/leads/${lead.id}`)}
+                      >
+                        <td className="py-3 font-medium">
+                          <Link href={`/leads/${lead.id}`} className="hover:underline">
+                            {lead.nome}
+                          </Link>
+                        </td>
+                        <td className="py-3 text-muted-foreground whitespace-nowrap">
+                          {lead.whatsapp}
+                        </td>
+                        <td className="py-3">
+                          <Badge variant={statusColors[lead.status] ?? "default"}>
+                            {lead.status.replace(/_/g, " ")}
+                          </Badge>
+                          {lead.em_bolsao && (
+                            <Badge variant="warning" className="ml-1">
+                              bolsão
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3">{lead.corretor?.nome ?? "—"}</td>
+                        <td className="py-3 text-muted-foreground">
+                          {lead.campanha?.nome ?? lead.origem ?? "—"}
+                        </td>
+                        <td className="py-3 text-muted-foreground whitespace-nowrap">
+                          {formatDate(lead.created_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -120,7 +120,7 @@ export default function NovoTemplatePage() {
   const headerPreview = preencherVars(form.header_text, exemplosHeader);
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl">
       <div className="flex items-center gap-2">
         <Link
           href="/ferramentas-chat/modelos"
@@ -132,7 +132,7 @@ export default function NovoTemplatePage() {
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold">Novo modelo de mensagem</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Novo modelo de mensagem</h1>
         <p className="text-muted-foreground text-sm">
           Criado na Meta como <strong>PENDING</strong>. Aprovação leva de minutos até
           24h.

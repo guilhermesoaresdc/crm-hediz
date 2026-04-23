@@ -11,13 +11,13 @@ export default function DashboardPage() {
   const corretores = api.dashboard.performanceCorretores.useQuery();
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">Últimos 30 dias</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard label="Leads" value={kpis.data?.leads ?? 0} loading={kpis.isLoading} />
         <KpiCard label="Vendas" value={kpis.data?.vendas ?? 0} loading={kpis.isLoading} />
         <KpiCard
@@ -122,29 +122,31 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {corretores.data && corretores.data.length > 0 ? (
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr className="text-left">
-                    <th className="pb-2">Corretor</th>
-                    <th className="pb-2">Leads</th>
-                    <th className="pb-2">Vendas</th>
-                    <th className="pb-2">Conv%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {corretores.data
-                    .sort((a, b) => b.total_vendas - a.total_vendas)
-                    .slice(0, 10)
-                    .map((c) => (
-                      <tr key={c.id} className="border-t">
-                        <td className="py-2">{c.nome}</td>
-                        <td className="py-2">{c.total_leads}</td>
-                        <td className="py-2">{c.total_vendas}</td>
-                        <td className="py-2">{c.taxa_conversao}%</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-muted-foreground">
+                    <tr className="text-left">
+                      <th className="pb-2">Corretor</th>
+                      <th className="pb-2">Leads</th>
+                      <th className="pb-2">Vendas</th>
+                      <th className="pb-2">Conv%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {corretores.data
+                      .sort((a, b) => b.total_vendas - a.total_vendas)
+                      .slice(0, 10)
+                      .map((c) => (
+                        <tr key={c.id} className="border-t">
+                          <td className="py-2 truncate max-w-[160px]">{c.nome}</td>
+                          <td className="py-2">{c.total_leads}</td>
+                          <td className="py-2">{c.total_vendas}</td>
+                          <td className="py-2">{c.taxa_conversao}%</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <p className="text-muted-foreground text-sm">Nenhum corretor com leads no período.</p>
             )}

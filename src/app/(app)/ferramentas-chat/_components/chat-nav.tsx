@@ -17,7 +17,7 @@ export function ChatNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="p-2 space-y-0.5">
+    <nav className="flex md:flex-col md:space-y-0.5 md:p-2 p-2 gap-1 overflow-x-auto md:overflow-visible">
       {items.map((item) => {
         const active = item.exact
           ? pathname === item.href
@@ -28,7 +28,7 @@ export function ChatNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+              "flex items-center gap-2 rounded-md px-3 md:px-2 py-2 md:py-1.5 text-sm transition-colors whitespace-nowrap flex-shrink-0",
               active
                 ? "bg-primary/10 text-primary font-medium"
                 : "text-foreground/80 hover:bg-accent hover:text-foreground",
@@ -36,7 +36,7 @@ export function ChatNav() {
           >
             <Icon
               className={cn(
-                "h-4 w-4",
+                "h-4 w-4 flex-shrink-0",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             />

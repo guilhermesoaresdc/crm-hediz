@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { TRPCProvider } from "@/lib/trpc/provider";
@@ -14,6 +14,17 @@ export const metadata: Metadata = {
   title: "Hédiz · CRM imobiliário",
   description:
     "CRM imobiliário com atribuição de ponta a ponta. Do clique ao fechamento.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0e11" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

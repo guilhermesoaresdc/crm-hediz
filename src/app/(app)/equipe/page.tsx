@@ -60,10 +60,10 @@ export default function EquipePage() {
   }
 
   return (
-    <div className="p-8 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4">
+      <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold">Equipe</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Equipe</h1>
           <p className="text-muted-foreground text-sm">
             {usuarios?.length ?? 0} usuários
           </p>
@@ -71,7 +71,8 @@ export default function EquipePage() {
         {podeGerenciar && (
           <Button onClick={() => setModalOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
-            Convidar corretor
+            <span className="hidden sm:inline">Convidar corretor</span>
+            <span className="sm:hidden">Convidar</span>
           </Button>
         )}
       </div>
@@ -235,71 +236,75 @@ export default function EquipePage() {
           ) : !usuarios?.length ? (
             <p className="text-muted-foreground text-center py-8">Nenhum usuário.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-xs text-muted-foreground">
-                <tr className="text-left border-b">
-                  <th className="py-2">Nome</th>
-                  <th className="py-2">Email</th>
-                  <th className="py-2">Role</th>
-                  <th className="py-2">Equipe</th>
-                  <th className="py-2">Status</th>
-                  <th className="py-2">Leads hoje</th>
-                  {podeGerenciar && <th className="py-2 text-right">Ações</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {usuarios.map((u) => {
-                  const eq = equipes?.find((e) => e.id === u.equipe_id);
-                  return (
-                    <tr key={u.id} className="border-b">
-                      <td className="py-3 font-medium">{u.nome}</td>
-                      <td className="py-3 text-muted-foreground">{u.email}</td>
-                      <td className="py-3">
-                        <Badge variant="outline">{u.role}</Badge>
-                      </td>
-                      <td className="py-3 text-muted-foreground">{eq?.nome ?? "—"}</td>
-                      <td className="py-3">
-                        {!u.ativo ? (
-                          <Badge variant="destructive">inativo</Badge>
-                        ) : u.em_pausa ? (
-                          <Badge variant="warning">em pausa</Badge>
-                        ) : (
-                          <Badge variant="success">ativo</Badge>
-                        )}
-                      </td>
-                      <td className="py-3 text-muted-foreground">
-                        {u.leads_hoje}/{u.limite_leads_dia}
-                      </td>
-                      {podeGerenciar && (
-                        <td className="py-3 text-right">
-                          {u.id !== me?.id && (
-                            u.ativo ? (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => desativar.mutate({ id: u.id })}
-                                disabled={desativar.isPending}
-                              >
-                                Desativar
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => reativar.mutate({ id: u.id })}
-                                disabled={reativar.isPending}
-                              >
-                                Reativar
-                              </Button>
-                            )
+            <div className="overflow-x-auto -mx-6">
+              <table className="w-full text-sm min-w-[720px]">
+                <thead className="text-xs text-muted-foreground">
+                  <tr className="text-left border-b">
+                    <th className="py-2 px-6">Nome</th>
+                    <th className="py-2 px-3">Email</th>
+                    <th className="py-2 px-3">Role</th>
+                    <th className="py-2 px-3">Equipe</th>
+                    <th className="py-2 px-3">Status</th>
+                    <th className="py-2 px-3">Leads hoje</th>
+                    {podeGerenciar && <th className="py-2 px-6 text-right">Ações</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {usuarios.map((u) => {
+                    const eq = equipes?.find((e) => e.id === u.equipe_id);
+                    return (
+                      <tr key={u.id} className="border-b">
+                        <td className="py-3 px-6 font-medium whitespace-nowrap">{u.nome}</td>
+                        <td className="py-3 px-3 text-muted-foreground">{u.email}</td>
+                        <td className="py-3 px-3">
+                          <Badge variant="outline">{u.role}</Badge>
+                        </td>
+                        <td className="py-3 px-3 text-muted-foreground whitespace-nowrap">
+                          {eq?.nome ?? "—"}
+                        </td>
+                        <td className="py-3 px-3">
+                          {!u.ativo ? (
+                            <Badge variant="destructive">inativo</Badge>
+                          ) : u.em_pausa ? (
+                            <Badge variant="warning">em pausa</Badge>
+                          ) : (
+                            <Badge variant="success">ativo</Badge>
                           )}
                         </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td className="py-3 px-3 text-muted-foreground whitespace-nowrap">
+                          {u.leads_hoje}/{u.limite_leads_dia}
+                        </td>
+                        {podeGerenciar && (
+                          <td className="py-3 px-6 text-right">
+                            {u.id !== me?.id && (
+                              u.ativo ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => desativar.mutate({ id: u.id })}
+                                  disabled={desativar.isPending}
+                                >
+                                  Desativar
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => reativar.mutate({ id: u.id })}
+                                  disabled={reativar.isPending}
+                                >
+                                  Reativar
+                                </Button>
+                              )
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

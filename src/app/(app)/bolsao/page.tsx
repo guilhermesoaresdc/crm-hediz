@@ -28,9 +28,9 @@ export default function BolsaoPage() {
   }, [refetch]);
 
   return (
-    <div className="p-8 space-y-4">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4">
       <div>
-        <h1 className="text-3xl font-bold">Bolsão</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Bolsão</h1>
         <p className="text-muted-foreground">
           Leads disponíveis pra qualquer corretor elegível pegar. Primeiro que pegar leva.
         </p>
@@ -45,7 +45,7 @@ export default function BolsaoPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.map((lead: any) => (
             <Card key={lead.id}>
               <CardHeader>
