@@ -12,8 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type TipoBotao = "QUICK_REPLY" | "URL" | "PHONE_NUMBER";
-type Botao = { type: TipoBotao; text: string; url?: string; phone_number?: string };
+type BotaoQR = { type: "QUICK_REPLY"; text: string };
+type BotaoURL = { type: "URL"; text: string; url: string };
+type BotaoTel = { type: "PHONE_NUMBER"; text: string; phone_number: string };
+type Botao = BotaoQR | BotaoURL | BotaoTel;
+type TipoBotao = Botao["type"];
 
 const CATEGORIAS = [
   {
@@ -91,6 +94,14 @@ export default function NovoTemplatePage() {
     const expHeader = exemplosHeader.slice(0, varsHeader);
     const expBody = exemplosBody.slice(0, varsBody);
 
+    // Normaliza pra discriminated union do Zod (TS não estreita Botao[] sozinho)
+    const botoesNorm = botoes.map((b): Botao => {
+      if (b.type === "URL") return { type: "URL", text: b.text, url: b.url };
+      if (b.type === "PHONE_NUMBER")
+        return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number };
+      return { type: "QUICK_REPLY", text: b.text };
+    });
+
     criar.mutate({
       canal_id: form.canal_id,
       nome: form.nome,
@@ -99,7 +110,7 @@ export default function NovoTemplatePage() {
       header_text: form.header_text || undefined,
       body_text: form.body_text,
       footer_text: form.footer_text || undefined,
-      botoes: botoes.length ? botoes : undefined,
+      botoes: botoesNorm.length ? (botoesNorm as never) : undefined,
       exemplos_header: expHeader.length ? expHeader : undefined,
       exemplos_body: expBody.length ? expBody : undefined,
     });

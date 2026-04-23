@@ -6,6 +6,10 @@ import {
   listarWhatsappBusinessAccounts,
   listarPhoneNumbersDaWaba,
   listarTemplatesDaWaba,
+  adicionarNumeroNaWaba,
+  requisitarCodigoVerificacao,
+  verificarCodigoNumero,
+  registrarNumeroCloudAPI,
 } from "@/lib/integrations/meta-oauth";
 
 export const canalRouter = createTRPCRouter({
@@ -167,6 +171,127 @@ export const canalRouter = createTRPCRouter({
         .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
       if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
       return { ok: true };
+    }),
+
+  // ===========================================================================
+  // Cadastro de número novo (do zero, sem WhatsApp Manager)
+  // ===========================================================================
+
+  adicionarNumero: adminProcedure
+    .input(
+      z.object({
+        waba_id: z.string(),
+        cc: z.string().regex(/^\d+$/),
+        phone_number: z.string().regex(/^\d+$/),
+        verified_name: z.string().min(2).max(25),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta ausente" });
+      }
+      try {
+        return await adicionarNumeroNaWaba(config.meta_access_token, input.waba_id, {
+          cc: input.cc,
+          phone_number: input.phone_number,
+          verified_name: input.verified_name,
+        });
+      } catch (err) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
+
+  requisitarCodigo: adminProcedure
+    .input(
+      z.object({
+        phone_number_id: z.string(),
+        method: z.enum(["SMS", "VOICE"]).default("SMS"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta ausente" });
+      }
+      try {
+        return await requisitarCodigoVerificacao(
+          config.meta_access_token,
+          input.phone_number_id,
+          input.method,
+        );
+      } catch (err) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
+
+  verificarCodigo: adminProcedure
+    .input(z.object({ phone_number_id: z.string(), code: z.string().min(4) }))
+    .mutation(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta ausente" });
+      }
+      try {
+        return await verificarCodigoNumero(
+          config.meta_access_token,
+          input.phone_number_id,
+          input.code,
+        );
+      } catch (err) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
+
+  registrarNumero: adminProcedure
+    .input(
+      z.object({
+        phone_number_id: z.string(),
+        pin: z.string().regex(/^\d{6}$/, "PIN deve ter 6 dígitos"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta ausente" });
+      }
+      try {
+        return await registrarNumeroCloudAPI(
+          config.meta_access_token,
+          input.phone_number_id,
+          input.pin,
+        );
+      } catch (err) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     }),
 
   /**

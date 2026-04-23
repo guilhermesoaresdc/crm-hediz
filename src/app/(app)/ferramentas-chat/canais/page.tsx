@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Trash2, Settings2, Phone, Facebook } from "lucide-react";
+import { Plus, Trash2, Settings2, Phone, Facebook, PhoneCall } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ export default function CanaisPage() {
 
   return (
     <div className="p-8 space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Canais</h1>
           <p className="text-muted-foreground text-sm">
@@ -34,12 +34,20 @@ export default function CanaisPage() {
           </p>
         </div>
         {oauthPronto ? (
-          <Link href="/ferramentas-chat/canais/novo">
-            <Button>
-              <Plus className="h-4 w-4" />
-              Conectar novo número
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/ferramentas-chat/canais/novo-numero">
+              <Button variant="outline">
+                <PhoneCall className="h-4 w-4" />
+                Cadastrar número novo
+              </Button>
+            </Link>
+            <Link href="/ferramentas-chat/canais/novo">
+              <Button>
+                <Plus className="h-4 w-4" />
+                Conectar número existente
+              </Button>
+            </Link>
+          </div>
         ) : (
           <Link href="/integracoes">
             <Button variant="outline">
@@ -77,12 +85,20 @@ export default function CanaisPage() {
               </div>
             </div>
             {oauthPronto && (
-              <Link href="/ferramentas-chat/canais/novo">
-                <Button>
-                  <Plus className="h-4 w-4" />
-                  Conectar primeiro número
-                </Button>
-              </Link>
+              <div className="flex gap-2 justify-center">
+                <Link href="/ferramentas-chat/canais/novo-numero">
+                  <Button variant="outline">
+                    <PhoneCall className="h-4 w-4" />
+                    Cadastrar número novo
+                  </Button>
+                </Link>
+                <Link href="/ferramentas-chat/canais/novo">
+                  <Button>
+                    <Plus className="h-4 w-4" />
+                    Conectar número existente
+                  </Button>
+                </Link>
+              </div>
             )}
           </CardContent>
         </Card>

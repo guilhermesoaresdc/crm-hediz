@@ -282,9 +282,16 @@ export default function NovoCanalPage() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
               </div>
             ) : !phones?.length ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhum número registrado. Adicione em business.facebook.com/wa/manage.
-              </p>
+              <div className="rounded-md bg-muted/50 p-4 text-sm space-y-3">
+                <div>
+                  Nenhum número registrado nessa WABA ainda.
+                </div>
+                <Link href="/ferramentas-chat/canais/novo-numero">
+                  <Button variant="outline" className="w-full">
+                    Cadastrar número novo direto pelo CRM
+                  </Button>
+                </Link>
+              </div>
             ) : (
               phones.map((p) => (
                 <button

@@ -38,15 +38,15 @@ export default function ModelosPage() {
 
   return (
     <div className="p-8 space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Modelos</h1>
           <p className="text-muted-foreground text-sm">
             Templates aprovados pelo Meta — use pra iniciar conversas com leads
           </p>
         </div>
-        {canalId && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {canalId && (
             <Button
               variant="outline"
               onClick={() => sincronizar.mutate({ canal_id: canalId })}
@@ -59,14 +59,14 @@ export default function ModelosPage() {
               )}
               Sincronizar do Meta
             </Button>
-            <Link href="/ferramentas-chat/modelos/novo">
-              <Button>
-                <Plus className="h-4 w-4" />
-                Novo modelo
-              </Button>
-            </Link>
-          </div>
-        )}
+          )}
+          <Link href="/ferramentas-chat/modelos/novo">
+            <Button disabled={!canais?.length}>
+              <Plus className="h-4 w-4" />
+              Novo modelo
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {!canais?.length ? (

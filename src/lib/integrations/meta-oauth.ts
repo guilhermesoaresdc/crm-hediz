@@ -320,3 +320,100 @@ export async function deletarTemplateNaMeta(
   if (!res.ok) throw new Error(`Falha ao deletar: ${await res.text()}`);
   return res.json();
 }
+
+// =============================================================================
+// Cadastro de número novo na WABA (sem precisar do WhatsApp Manager)
+// =============================================================================
+
+async function metaPost<T = unknown>(
+  path: string,
+  accessToken: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const url = `https://graph.facebook.com/v19.0/${path.replace(/^\//, "")}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    const msg =
+      json?.error?.error_user_msg ||
+      json?.error?.message ||
+      `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return json;
+}
+
+/**
+ * Adiciona um novo número à WABA. Retorna phone_number_id em status
+ * PENDING_NUMBER_VERIFICATION até verificar via SMS/voz.
+ */
+export async function adicionarNumeroNaWaba(
+  accessToken: string,
+  wabaId: string,
+  params: { cc: string; phone_number: string; verified_name: string },
+) {
+  return metaPost<{ id: string; status?: string }>(
+    `${wabaId}/phone_numbers`,
+    accessToken,
+    {
+      cc: params.cc,
+      phone_number: params.phone_number,
+      verified_name: params.verified_name,
+    },
+  );
+}
+
+/**
+ * Solicita código de verificação por SMS ou VOICE.
+ * Idioma "pt_BR" pra mensagem em português.
+ */
+export async function requisitarCodigoVerificacao(
+  accessToken: string,
+  phoneNumberId: string,
+  method: "SMS" | "VOICE",
+  language = "pt_BR",
+) {
+  return metaPost<{ success: boolean }>(
+    `${phoneNumberId}/request_code`,
+    accessToken,
+    { code_method: method, language },
+  );
+}
+
+/**
+ * Verifica o código recebido por SMS/voz.
+ */
+export async function verificarCodigoNumero(
+  accessToken: string,
+  phoneNumberId: string,
+  code: string,
+) {
+  return metaPost<{ success: boolean }>(
+    `${phoneNumberId}/verify_code`,
+    accessToken,
+    { code },
+  );
+}
+
+/**
+ * Registra o número na Cloud API com PIN 2FA (6 dígitos).
+ * Após este passo, o número fica habilitado pra enviar/receber.
+ */
+export async function registrarNumeroCloudAPI(
+  accessToken: string,
+  phoneNumberId: string,
+  pin: string,
+) {
+  return metaPost<{ success: boolean }>(
+    `${phoneNumberId}/register`,
+    accessToken,
+    { messaging_product: "whatsapp", pin },
+  );
+}
