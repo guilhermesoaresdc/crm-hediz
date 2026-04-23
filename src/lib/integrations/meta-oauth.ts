@@ -526,6 +526,13 @@ export async function trocarEmbeddedSignupCode(params: {
   ];
 
   let ultimoErro = "Nenhuma tentativa executada";
+  const detalhesErros: Array<{
+    variante: string;
+    code?: number;
+    subcode?: number;
+    message: string;
+  }> = [];
+
   for (const t of tentativas) {
     const url = new URL("https://graph.facebook.com/v22.0/oauth/access_token");
     url.searchParams.set("client_id", params.appId);
@@ -544,14 +551,16 @@ export async function trocarEmbeddedSignupCode(params: {
       return json;
     }
 
-    ultimoErro = json?.error?.message ?? `HTTP ${res.status}`;
-    console.warn(
-      `[embedded-signup] falha "${t.label}" (${json?.error?.code}/${json?.error?.error_subcode}): ${ultimoErro}`,
-    );
+    const msg = json?.error?.message ?? `HTTP ${res.status}`;
+    const code = json?.error?.code as number | undefined;
+    const subcode = json?.error?.error_subcode as number | undefined;
+    detalhesErros.push({ variante: t.label, code, subcode, message: msg });
+    ultimoErro = `[code=${code} subcode=${subcode}] ${msg}`;
+    console.warn(`[embedded-signup] falha "${t.label}" ${ultimoErro}`);
 
     // Se o erro não é sobre redirect_uri (ex: code expirado, app id errado),
     // não vale tentar outras variantes — aborta com a mensagem original
-    const msgLower = ultimoErro.toLowerCase();
+    const msgLower = msg.toLowerCase();
     const ehProblemaDeRedirect =
       msgLower.includes("redirect_uri") ||
       msgLower.includes("redirect uri") ||
@@ -559,7 +568,11 @@ export async function trocarEmbeddedSignupCode(params: {
     if (!ehProblemaDeRedirect) break;
   }
 
-  throw new Error(`Embedded Signup token exchange falhou: ${ultimoErro}`);
+  // Serializa todas as tentativas pra facilitar debug
+  const resumo = detalhesErros
+    .map((e) => `${e.variante}:[${e.code}/${e.subcode}] ${e.message}`)
+    .join(" | ");
+  throw new Error(`Embedded Signup token exchange falhou. Tentativas: ${resumo}`);
 }
 
 /**
