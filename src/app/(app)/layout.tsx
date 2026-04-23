@@ -26,14 +26,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex bg-background text-foreground overflow-hidden">
+      <div className="h-screen bg-background text-foreground overflow-hidden">
         <Sidebar
           role={profile.role as string}
           imobiliariaNome={imobiliaria?.nome ?? "Hédiz"}
           userName={profile.nome}
           userRole={profile.role as string}
         />
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="h-full flex flex-col overflow-hidden min-w-0 lg:pl-60">
           <Header
             nome={profile.nome}
             email={profile.email}
