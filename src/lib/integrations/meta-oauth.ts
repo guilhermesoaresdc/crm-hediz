@@ -238,3 +238,33 @@ export async function listarPhoneNumbersDaWaba(
   ).catch(() => ({ data: [] as MetaPhoneNumber[] }));
   return res.data;
 }
+
+export type MetaTemplate = {
+  id: string;
+  name: string;
+  status: string;
+  category?: string;
+  language: string;
+  components: Array<{
+    type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS";
+    format?: string;
+    text?: string;
+    buttons?: Array<{ type: string; text?: string; url?: string; phone_number?: string }>;
+    example?: { body_text?: string[][]; header_text?: string[] };
+  }>;
+};
+
+/**
+ * Lista templates de mensagem aprovados/em análise de uma WABA.
+ */
+export async function listarTemplatesDaWaba(accessToken: string, wabaId: string) {
+  const res = await graphGet<{ data: MetaTemplate[] }>(
+    `${wabaId}/message_templates`,
+    accessToken,
+    {
+      fields: "id,name,status,category,language,components",
+      limit: 200,
+    },
+  ).catch(() => ({ data: [] as MetaTemplate[] }));
+  return res.data;
+}

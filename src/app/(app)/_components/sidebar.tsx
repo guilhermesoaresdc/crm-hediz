@@ -13,6 +13,7 @@ import {
   UsersRound,
   Briefcase,
   Plug,
+  MessageCircle,
 } from "lucide-react";
 import { HedizWordmark } from "@/components/hediz-logo";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,12 @@ const SECTIONS: NavSection[] = [
       { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
       { href: "/bolsao", label: "Bolsão", icon: Inbox },
       { href: "/vendas", label: "Vendas", icon: DollarSign },
+      {
+        href: "/ferramentas-chat",
+        label: "Ferramentas do Chat",
+        icon: MessageCircle,
+        roles: ["super_admin", "gerente"],
+      },
     ],
   },
   {

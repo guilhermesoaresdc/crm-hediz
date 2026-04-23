@@ -16,6 +16,8 @@ const titulosPorRota: Record<string, string> = {
   "/bolsao": "Bolsão",
   "/vendas": "Vendas",
   "/equipe": "Equipe",
+  "/integracoes": "Integrações",
+  "/ferramentas-chat": "Ferramentas do Chat",
   "/configuracoes": "Configurações",
 };
 
