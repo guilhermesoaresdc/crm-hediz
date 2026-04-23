@@ -421,6 +421,10 @@ export async function registrarNumeroCloudAPI(
 /**
  * Embedded Signup com Coexistence: troca o code que vem do FB.login
  * (com config_id) por um access token e dados do WhatsApp configurado.
+ *
+ * IMPORTANTE: quando o code vem do JSSDK, o redirect_uri DEVE ser
+ * string vazia — a Meta usa um redirect interno do SDK e qualquer
+ * outro valor resulta em "Error validating verification code".
  */
 export async function trocarEmbeddedSignupCode(params: {
   appId: string;
@@ -434,7 +438,7 @@ export async function trocarEmbeddedSignupCode(params: {
   url.searchParams.set("client_id", params.appId);
   url.searchParams.set("client_secret", params.appSecret);
   url.searchParams.set("code", params.code);
-  // Embedded Signup não requer redirect_uri, mas se fornecido, deve casar
+  url.searchParams.set("redirect_uri", ""); // Obrigatório vazio pro JSSDK
   const res = await fetch(url.toString());
   const json = await res.json();
   if (!res.ok) {
