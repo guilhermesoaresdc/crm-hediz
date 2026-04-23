@@ -61,6 +61,13 @@ export async function POST(req: Request) {
     );
   }
 
+  // Sanity check: primeiros 6 chars do app_id são logados pra comparar
+  // com o app_id=... que aparece na URL do dialog OAuth. Se divergir, o
+  // servidor está configurado com env var apontando pra outro app.
+  console.log(
+    `[embedded-signup] iniciando exchange (app_id=${appId.slice(0, 6)}..., code=${parsed.data.code?.slice(0, 8) ?? "<sem code>"}...)`,
+  );
+
   try {
     let accessToken: string;
 
