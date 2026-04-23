@@ -32,13 +32,19 @@ export const configRouter = createTRPCRouter({
     const { data, error } = await ctx.supabase
       .from("configuracoes_imobiliaria")
       .select(
-        // Oculta tokens no read comum
-        "imobiliaria_id, bolsao_ativo, bolsao_timeout_minutos, bolsao_elegibilidade, bolsao_limite_diario_por_corretor, roleta_tipo, roleta_respeita_horario, roleta_respeita_pausa, roleta_respeita_limite_diario, meta_business_id, meta_ad_account_id, meta_page_id, meta_pixel_id, meta_conectado_em, whatsapp_phone_number_id, whatsapp_business_account_id, whatsapp_conectado_em, fee_agencia_tipo, fee_agencia_valor",
+        // Oculta tokens no read comum, inclui nomes e fotos
+        "imobiliaria_id, bolsao_ativo, bolsao_timeout_minutos, bolsao_elegibilidade, bolsao_limite_diario_por_corretor, roleta_tipo, roleta_respeita_horario, roleta_respeita_pausa, roleta_respeita_limite_diario, meta_business_id, meta_business_nome, meta_business_picture_url, meta_ad_account_id, meta_ad_account_nome, meta_page_id, meta_page_nome, meta_page_picture_url, meta_pixel_id, meta_pixel_nome, meta_conectado_em, meta_access_token, whatsapp_phone_number_id, whatsapp_phone_display, whatsapp_business_account_id, whatsapp_business_account_nome, whatsapp_conectado_em, fee_agencia_tipo, fee_agencia_valor",
       )
       .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
       .single();
     if (error) throw new TRPCError({ code: "NOT_FOUND" });
-    return data;
+
+    // Não expõe o access token, só flag de presença
+    const { meta_access_token, ...rest } = data ?? {};
+    return {
+      ...rest,
+      meta_access_token_present: !!meta_access_token,
+    };
   }),
 
   atualizar: adminProcedure
@@ -147,9 +153,15 @@ export const configRouter = createTRPCRouter({
     .input(
       z.object({
         meta_business_id: z.string(),
+        meta_business_nome: z.string().optional(),
+        meta_business_picture_url: z.string().url().optional(),
         meta_ad_account_id: z.string(),
+        meta_ad_account_nome: z.string().optional(),
         meta_page_id: z.string().optional(),
+        meta_page_nome: z.string().optional(),
+        meta_page_picture_url: z.string().url().optional(),
         meta_pixel_id: z.string().optional(),
+        meta_pixel_nome: z.string().optional(),
         meta_capi_token: z.string().optional(),
         page_access_token: z.string().optional(),
       }),
@@ -157,9 +169,15 @@ export const configRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const updates: Record<string, unknown> = {
         meta_business_id: input.meta_business_id,
+        meta_business_nome: input.meta_business_nome ?? null,
+        meta_business_picture_url: input.meta_business_picture_url ?? null,
         meta_ad_account_id: input.meta_ad_account_id,
+        meta_ad_account_nome: input.meta_ad_account_nome ?? null,
         meta_page_id: input.meta_page_id ?? null,
+        meta_page_nome: input.meta_page_nome ?? null,
+        meta_page_picture_url: input.meta_page_picture_url ?? null,
         meta_pixel_id: input.meta_pixel_id ?? null,
+        meta_pixel_nome: input.meta_pixel_nome ?? null,
         meta_conectado_em: new Date().toISOString(),
       };
 
@@ -325,7 +343,9 @@ export const configRouter = createTRPCRouter({
     .input(
       z.object({
         whatsapp_business_account_id: z.string(),
+        whatsapp_business_account_nome: z.string().optional(),
         whatsapp_phone_number_id: z.string(),
+        whatsapp_phone_display: z.string().optional(),
         whatsapp_access_token: z.string().optional(),
       }),
     )
@@ -349,7 +369,9 @@ export const configRouter = createTRPCRouter({
         .from("configuracoes_imobiliaria")
         .update({
           whatsapp_business_account_id: input.whatsapp_business_account_id,
+          whatsapp_business_account_nome: input.whatsapp_business_account_nome ?? null,
           whatsapp_phone_number_id: input.whatsapp_phone_number_id,
+          whatsapp_phone_display: input.whatsapp_phone_display ?? null,
           whatsapp_access_token: token,
           whatsapp_conectado_em: new Date().toISOString(),
         })

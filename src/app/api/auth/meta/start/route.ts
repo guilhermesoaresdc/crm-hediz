@@ -24,7 +24,11 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // State = random + user_id assinado pra prevenir CSRF
+  const intent =
+    new URL(req.url).searchParams.get("intent") === "whatsapp"
+      ? "whatsapp"
+      : "ads";
+
   const random = crypto.randomBytes(16).toString("hex");
   const state = `${random}.${user.id}`;
 
@@ -33,12 +37,18 @@ export async function GET(req: Request) {
   const url = getMetaOAuthUrl({ appId, redirectUri, state });
 
   const response = NextResponse.redirect(url);
-  // Cookie HttpOnly pra validar state no callback
   response.cookies.set("meta_oauth_state", state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 600, // 10min
+    maxAge: 600,
+    path: "/",
+  });
+  response.cookies.set("meta_oauth_intent", intent, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 600,
     path: "/",
   });
   return response;

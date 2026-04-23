@@ -88,10 +88,21 @@ export async function GET(req: Request) {
       return errorRedirect(origin, `Falha ao salvar token: ${error.message}`);
     }
 
-    const response = NextResponse.redirect(
-      new URL("/integracoes/selecionar", origin),
-    );
+    // Lê o intent salvo no cookie pra decidir destino
+    const intentCookie = req.headers
+      .get("cookie")
+      ?.split(";")
+      .find((c) => c.trim().startsWith("meta_oauth_intent="))
+      ?.split("=")[1];
+
+    const destino =
+      intentCookie === "whatsapp"
+        ? "/integracoes/selecionar-whatsapp"
+        : "/integracoes/selecionar";
+
+    const response = NextResponse.redirect(new URL(destino, origin));
     response.cookies.delete("meta_oauth_state");
+    response.cookies.delete("meta_oauth_intent");
     return response;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

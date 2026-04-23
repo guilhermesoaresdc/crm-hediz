@@ -158,12 +158,32 @@ function MetaIntegrationCard({
       <CardContent className="space-y-4">
         {conectado && !editando && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-              <InfoField label="Business ID" value={config?.meta_business_id} />
-              <InfoField label="Ad Account" value={config?.meta_ad_account_id} />
-              <InfoField label="Page ID" value={config?.meta_page_id} />
-              <InfoField label="Pixel ID" value={config?.meta_pixel_id} />
-              <InfoField label="Conectado em" value={formatDate(config?.meta_conectado_em)} />
+            <div className="space-y-3">
+              <AssetRow
+                label="Business"
+                nome={config?.meta_business_nome}
+                id={config?.meta_business_id}
+                picture={config?.meta_business_picture_url}
+              />
+              <AssetRow
+                label="Ad Account"
+                nome={config?.meta_ad_account_nome}
+                id={config?.meta_ad_account_id}
+              />
+              <AssetRow
+                label="Página"
+                nome={config?.meta_page_nome}
+                id={config?.meta_page_id}
+                picture={config?.meta_page_picture_url}
+              />
+              <AssetRow
+                label="Pixel"
+                nome={config?.meta_pixel_nome}
+                id={config?.meta_pixel_id}
+              />
+              <div className="text-xs text-muted-foreground pt-1">
+                Conectado em {formatDate(config?.meta_conectado_em)}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2">
@@ -476,13 +496,20 @@ function WhatsappIntegrationCard({
       <CardContent className="space-y-4">
         {conectado && !editando && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-              <InfoField label="Phone Number ID" value={config?.whatsapp_phone_number_id} />
-              <InfoField
-                label="Business Account"
-                value={config?.whatsapp_business_account_id}
+            <div className="space-y-3">
+              <AssetRow
+                label="Número"
+                nome={config?.whatsapp_phone_display}
+                id={config?.whatsapp_phone_number_id}
               />
-              <InfoField label="Conectado em" value={formatDate(config?.whatsapp_conectado_em)} />
+              <AssetRow
+                label="WhatsApp Business Account"
+                nome={config?.whatsapp_business_account_nome}
+                id={config?.whatsapp_business_account_id}
+              />
+              <div className="text-xs text-muted-foreground pt-1">
+                Conectado em {formatDate(config?.whatsapp_conectado_em)}
+              </div>
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
               {oauthDisponivel && temTokenMeta && (
@@ -529,7 +556,7 @@ function WhatsappIntegrationCard({
                 </>
               ) : (
                 <>
-                  <a href="/api/auth/meta/start">
+                  <a href="/api/auth/meta/start?intent=whatsapp">
                     <Button className="w-full h-11 bg-[#1877F2] text-white hover:bg-[#1877F2]/90">
                       <Facebook className="h-5 w-5" />
                       Continuar com Facebook
@@ -662,6 +689,48 @@ function InfoField({ label, value }: { label: string; value: string | null | und
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="font-mono text-xs truncate" title={value ?? ""}>
         {value ?? "—"}
+      </div>
+    </div>
+  );
+}
+
+function AssetRow({
+  label,
+  nome,
+  id,
+  picture,
+}: {
+  label: string;
+  nome?: string | null;
+  id?: string | null;
+  picture?: string | null;
+}) {
+  if (!id) {
+    return (
+      <div className="flex items-center justify-between gap-3 text-sm py-1">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground">—</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      <div className="text-xs text-muted-foreground w-36 flex-shrink-0">{label}</div>
+      {picture ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={picture}
+          alt={nome ?? id}
+          className="h-8 w-8 rounded-full bg-muted flex-shrink-0"
+        />
+      ) : (
+        <div className="h-8 w-8 rounded-full bg-muted flex-shrink-0 inline-flex items-center justify-center text-xs font-semibold text-muted-foreground">
+          {(nome ?? id).slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="font-medium truncate">{nome ?? "(sem nome)"}</div>
+        <div className="font-mono text-[11px] text-muted-foreground truncate">{id}</div>
       </div>
     </div>
   );

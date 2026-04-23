@@ -26,12 +26,15 @@ export default function SelecionarMetaAssetsPage() {
   const [selecao, setSelecao] = useState({
     meta_business_id: "",
     meta_business_nome: "",
+    meta_business_picture_url: "",
     meta_ad_account_id: "",
     meta_ad_account_nome: "",
     meta_page_id: "",
     meta_page_nome: "",
+    meta_page_picture_url: "",
     page_access_token: "",
     meta_pixel_id: "",
+    meta_pixel_nome: "",
     meta_capi_token: "",
   });
 
@@ -193,6 +196,7 @@ export default function SelecionarMetaAssetsPage() {
                       ...s,
                       meta_business_id: b.id,
                       meta_business_nome: b.name,
+                      meta_business_picture_url: b.picture?.data?.url ?? "",
                     }));
                     setStep("ad_account");
                   }}
@@ -308,6 +312,7 @@ export default function SelecionarMetaAssetsPage() {
                       ...s,
                       meta_page_id: p.id,
                       meta_page_nome: p.name,
+                      meta_page_picture_url: p.picture?.data?.url ?? "",
                       page_access_token: p.access_token ?? "",
                     }));
                     setStep("pixel");
@@ -365,7 +370,7 @@ export default function SelecionarMetaAssetsPage() {
                 <button
                   key={p.id}
                   onClick={() => {
-                    setSelecao((s) => ({ ...s, meta_pixel_id: p.id }));
+                    setSelecao((s) => ({ ...s, meta_pixel_id: p.id, meta_pixel_nome: p.name }));
                     setStep("capi");
                   }}
                   className="w-full text-left px-4 py-3 rounded-md border hover:border-primary hover:bg-accent/50 transition-colors flex items-center justify-between"
@@ -506,9 +511,15 @@ export default function SelecionarMetaAssetsPage() {
                 onClick={() =>
                   finalizar.mutate({
                     meta_business_id: selecao.meta_business_id,
+                    meta_business_nome: selecao.meta_business_nome || undefined,
+                    meta_business_picture_url: selecao.meta_business_picture_url || undefined,
                     meta_ad_account_id: selecao.meta_ad_account_id,
+                    meta_ad_account_nome: selecao.meta_ad_account_nome || undefined,
                     meta_page_id: selecao.meta_page_id || undefined,
+                    meta_page_nome: selecao.meta_page_nome || undefined,
+                    meta_page_picture_url: selecao.meta_page_picture_url || undefined,
                     meta_pixel_id: selecao.meta_pixel_id || undefined,
+                    meta_pixel_nome: selecao.meta_pixel_nome || undefined,
                     meta_capi_token: selecao.meta_capi_token || undefined,
                     page_access_token: selecao.page_access_token || undefined,
                   })

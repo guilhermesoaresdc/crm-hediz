@@ -87,7 +87,7 @@ export async function graphGet<T = unknown>(
   return res.json();
 }
 
-export type MetaBusiness = { id: string; name: string };
+export type MetaBusiness = { id: string; name: string; picture?: { data: { url: string } } };
 export type MetaAdAccount = {
   id: string;
   account_id: string;
@@ -95,7 +95,12 @@ export type MetaAdAccount = {
   account_status: number;
   currency?: string;
 };
-export type MetaPage = { id: string; name: string; access_token?: string };
+export type MetaPage = {
+  id: string;
+  name: string;
+  access_token?: string;
+  picture?: { data: { url: string } };
+};
 export type MetaPixel = { id: string; name: string };
 
 /**
@@ -106,7 +111,7 @@ export async function listarBusinesses(accessToken: string) {
   const res = await graphGet<{ data: MetaBusiness[] }>(
     "me/businesses",
     accessToken,
-    { fields: "id,name", limit: 100 },
+    { fields: "id,name,picture{url}", limit: 100 },
   ).catch(() => ({ data: [] as MetaBusiness[] }));
   return res.data;
 }
@@ -120,7 +125,7 @@ export async function listarAssetsDoBusiness(
   businessId: string,
 ) {
   const fieldsAd = "id,account_id,name,account_status,currency";
-  const fieldsPage = "id,name,access_token";
+  const fieldsPage = "id,name,access_token,picture{url}";
 
   const [owned, client, ownedPages, clientPages] = await Promise.all([
     graphGet<{ data: MetaAdAccount[] }>(

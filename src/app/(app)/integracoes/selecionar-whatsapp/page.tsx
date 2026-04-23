@@ -391,7 +391,10 @@ export default function SelecionarWhatsappPage() {
                 onClick={() =>
                   finalizar.mutate({
                     whatsapp_business_account_id: selecao.whatsapp_business_account_id,
+                    whatsapp_business_account_nome:
+                      selecao.whatsapp_business_account_nome || undefined,
                     whatsapp_phone_number_id: selecao.whatsapp_phone_number_id,
+                    whatsapp_phone_display: selecao.whatsapp_phone_display || undefined,
                   })
                 }
                 disabled={finalizar.isPending}
