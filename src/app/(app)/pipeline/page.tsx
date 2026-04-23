@@ -152,25 +152,29 @@ export default function PipelinePage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="border-b bg-background px-8 py-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Pipeline</h1>
-            <p className="text-sm text-muted-foreground">
+      <div className="border-b bg-background px-4 sm:px-6 lg:px-8 py-3 sm:py-4 space-y-3">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold">Pipeline</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {leads.length} leads ativos ·{" "}
-              <span className="text-primary">Arraste os cards pra mudar status</span>
+              <span className="text-primary hidden sm:inline">
+                Arraste os cards pra mudar status
+              </span>
+              <span className="text-primary sm:hidden">Deslize pra ver mais</span>
             </p>
           </div>
           <Link
             href="/leads/novo"
-            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-10 text-sm font-medium hover:bg-primary/90"
+            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-3 sm:px-4 h-10 text-sm font-medium hover:bg-primary/90 flex-shrink-0"
           >
-            + Novo lead
+            <span className="hidden sm:inline">+ Novo lead</span>
+            <span className="sm:hidden">+ Novo</span>
           </Link>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <div className="relative flex-1 min-w-[240px]">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+          <div className="relative flex-1 sm:min-w-[240px]">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar nome, WhatsApp ou campanha"
@@ -179,34 +183,36 @@ export default function PipelinePage() {
               className="pl-9"
             />
           </div>
-          <select
-            value={corretorFiltro}
-            onChange={(e) => setCorretorFiltro(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 h-10 text-sm min-w-[180px]"
-          >
-            <option value="">Todos corretores</option>
-            {corretores?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
-          <select
-            value={origemFiltro}
-            onChange={(e) => setOrigemFiltro(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 h-10 text-sm min-w-[160px]"
-          >
-            <option value="">Todas origens</option>
-            <option value="meta_form">Meta Formulário</option>
-            <option value="meta_site">Site / LP</option>
-            <option value="whatsapp_direto">WhatsApp direto</option>
-            <option value="indicacao">Indicação</option>
-            <option value="manual">Manual</option>
-          </select>
+          <div className="grid grid-cols-2 sm:flex gap-2">
+            <select
+              value={corretorFiltro}
+              onChange={(e) => setCorretorFiltro(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 h-10 text-sm sm:min-w-[180px] min-w-0"
+            >
+              <option value="">Todos corretores</option>
+              {corretores?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+            <select
+              value={origemFiltro}
+              onChange={(e) => setOrigemFiltro(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 h-10 text-sm sm:min-w-[160px] min-w-0"
+            >
+              <option value="">Todas origens</option>
+              <option value="meta_form">Meta Formulário</option>
+              <option value="meta_site">Site / LP</option>
+              <option value="whatsapp_direto">WhatsApp direto</option>
+              <option value="indicacao">Indicação</option>
+              <option value="manual">Manual</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 bg-muted/30">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 sm:p-4 bg-muted/30">
         {error ? (
           <div className="rounded-md border border-destructive/20 bg-destructive/5 text-destructive p-4 max-w-xl">
             <div className="font-semibold mb-1">Falha ao carregar leads</div>
@@ -217,7 +223,7 @@ export default function PipelinePage() {
             {COLUNAS.map((col) => (
               <div
                 key={col.status}
-                className="w-[300px] flex-shrink-0 bg-card rounded-lg border animate-pulse h-full"
+                className="w-[260px] sm:w-[300px] flex-shrink-0 bg-card rounded-lg border animate-pulse h-full"
               />
             ))}
           </div>
@@ -249,7 +255,7 @@ function KanbanColumn({ coluna, leads }: { coluna: Coluna; leads: Lead[] }) {
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col w-[300px] flex-shrink-0 bg-card rounded-lg border shadow-sm transition-colors",
+        "flex flex-col w-[260px] sm:w-[300px] flex-shrink-0 bg-card rounded-lg border shadow-sm transition-colors",
         isOver && "ring-2 ring-primary bg-primary/5",
       )}
     >

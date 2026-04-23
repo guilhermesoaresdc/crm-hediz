@@ -35,9 +35,9 @@ export default function FerramentasChatHubPage() {
   const pct = Math.round((steps.filter((s) => s.done).length / steps.length) * 100);
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-3xl font-bold">Ferramentas do Chat</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Ferramentas do Chat</h1>
         <p className="text-muted-foreground text-sm">
           WhatsApp Business — canais, modelos, transmissões e automações
         </p>

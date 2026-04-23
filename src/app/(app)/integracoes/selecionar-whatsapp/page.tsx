@@ -56,7 +56,7 @@ export default function SelecionarWhatsappPage() {
 
   if (businessesLoading) {
     return (
-      <div className="p-8 max-w-3xl">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
           Carregando Business Managers...
@@ -67,7 +67,7 @@ export default function SelecionarWhatsappPage() {
 
   if (businessesError) {
     return (
-      <div className="p-8 max-w-3xl space-y-4">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl space-y-4">
         <h1 className="text-2xl font-bold">Conecte com Facebook primeiro</h1>
         <p className="text-muted-foreground text-sm">
           Pra configurar WhatsApp, é preciso ter autenticado com Facebook antes.
@@ -96,7 +96,7 @@ export default function SelecionarWhatsappPage() {
   ];
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl space-y-6">
       <div className="flex items-center gap-2">
         <Link
           href="/integracoes"
@@ -112,7 +112,7 @@ export default function SelecionarWhatsappPage() {
           <MessageCircle className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold">Conectar WhatsApp Business</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Conectar WhatsApp Business</h1>
           <p className="text-muted-foreground text-sm">
             Escolha a conta WhatsApp Business e o número que vai disparar as mensagens.
           </p>

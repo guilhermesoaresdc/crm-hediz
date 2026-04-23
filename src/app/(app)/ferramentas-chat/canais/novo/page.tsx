@@ -72,7 +72,7 @@ export default function NovoCanalPage() {
 
   if (loadingBusinesses) {
     return (
-      <div className="p-8 max-w-3xl">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
           Carregando Business Managers...
@@ -83,7 +83,7 @@ export default function NovoCanalPage() {
 
   if (errorBusinesses) {
     return (
-      <div className="p-8 max-w-3xl space-y-4">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl space-y-4">
         <h1 className="text-2xl font-bold">Conecte Meta primeiro</h1>
         <p className="text-muted-foreground text-sm">
           Pra listar suas WABAs, é preciso ter autenticado com Facebook em Integrações.
@@ -108,7 +108,7 @@ export default function NovoCanalPage() {
   ];
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl space-y-6">
       <div className="flex items-center gap-2">
         <Link
           href="/ferramentas-chat/canais"
@@ -124,7 +124,7 @@ export default function NovoCanalPage() {
           <MessageCircle className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold">Conectar novo canal WhatsApp</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Conectar novo canal WhatsApp</h1>
           <p className="text-muted-foreground text-sm">
             Escolha qual Business, WABA, número e dê um apelido.
           </p>

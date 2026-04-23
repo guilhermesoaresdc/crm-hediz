@@ -57,7 +57,7 @@ export function UserMenu({
       {open && (
         <div
           className={cn(
-            "absolute right-0 mt-2 w-60 rounded-lg border bg-popover shadow-elevated overflow-hidden z-50",
+            "absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-[16rem] sm:w-60 rounded-lg border bg-popover shadow-elevated overflow-hidden z-50",
             "animate-fade-in",
           )}
         >

@@ -48,18 +48,18 @@ export default function GestaoPage() {
   });
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Pronto para melhorar sua gestão?</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Pronto para melhorar sua gestão?</h1>
         <p className="text-muted-foreground">Insights da sua equipe em tempo real</p>
       </div>
 
       {/* Filtros */}
       <Card>
         <CardContent className="pt-5 pb-5">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row flex-wrap sm:items-center gap-3">
             <select
-              className="rounded-md border border-input bg-background px-3 h-10 text-sm min-w-[200px]"
+              className="rounded-md border border-input bg-background px-3 h-10 text-sm sm:min-w-[200px]"
               value={periodo}
               onChange={(e) => setPeriodo(e.target.value as Periodo)}
             >
@@ -70,7 +70,7 @@ export default function GestaoPage() {
               ))}
             </select>
             <select
-              className="rounded-md border border-input bg-background px-3 h-10 text-sm min-w-[220px]"
+              className="rounded-md border border-input bg-background px-3 h-10 text-sm sm:min-w-[220px]"
               value={equipeIds.length === 1 ? equipeIds[0] : ""}
               onChange={(e) => setEquipeIds(e.target.value ? [e.target.value] : [])}
             >
@@ -85,7 +85,7 @@ export default function GestaoPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Usuários com mais leads sem resposta */}
         <Card>
           <CardHeader>
@@ -199,7 +199,7 @@ export default function GestaoPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Funil */}
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -219,7 +219,7 @@ export default function GestaoPage() {
                   ];
                   return (
                     <div key={stage.label} className="flex items-center gap-3">
-                      <div className="w-40 text-sm text-muted-foreground flex-shrink-0">
+                      <div className="w-24 sm:w-40 text-xs sm:text-sm text-muted-foreground flex-shrink-0">
                         {stage.label}
                       </div>
                       <div className="flex-1 h-8 bg-muted rounded overflow-hidden relative">

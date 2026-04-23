@@ -38,28 +38,28 @@ export default function LeadDetailPage() {
 
   const [novaMsg, setNovaMsg] = useState("");
 
-  if (isLoading) return <div className="p-8">Carregando...</div>;
-  if (!lead) return <div className="p-8">Lead não encontrado</div>;
+  if (isLoading) return <div className="p-4 sm:p-6 lg:p-8">Carregando...</div>;
+  if (!lead) return <div className="p-4 sm:p-6 lg:p-8">Lead não encontrado</div>;
 
   const l = lead as any;
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{l.nome}</h1>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold break-words">{l.nome}</h1>
           <div className="flex gap-2 mt-2 flex-wrap">
             <Badge>{l.status.replace(/_/g, " ")}</Badge>
             {l.em_bolsao && <Badge variant="warning">bolsão</Badge>}
             {l.origem && <Badge variant="outline">{l.origem}</Badge>}
           </div>
         </div>
-        <Link href="/leads">
+        <Link href="/leads" className="flex-shrink-0">
           <Button variant="outline">Voltar</Button>
         </Link>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>

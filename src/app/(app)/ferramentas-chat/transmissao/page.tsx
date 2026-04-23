@@ -3,9 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function TransmissaoPage() {
   return (
-    <div className="p-8 max-w-5xl space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Transmissão</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Transmissão</h1>
         <p className="text-muted-foreground text-sm">
           Envie mensagens em massa para listas de leads usando templates aprovados
         </p>

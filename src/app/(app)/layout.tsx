@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Sidebar } from "./_components/sidebar";
 import { Header } from "./_components/header";
+import { SidebarProvider } from "./_components/sidebar-context";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createSupabaseServerClient();
@@ -24,21 +25,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : imobiliariaRaw) as { nome?: string; logo_url?: string | null } | null | undefined;
 
   return (
-    <div className="h-screen flex bg-background text-foreground overflow-hidden">
-      <Sidebar
-        role={profile.role as string}
-        imobiliariaNome={imobiliaria?.nome ?? "Hédiz"}
-        userName={profile.nome}
-        userRole={profile.role as string}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          nome={profile.nome}
-          email={profile.email}
+    <SidebarProvider>
+      <div className="h-screen flex bg-background text-foreground overflow-hidden">
+        <Sidebar
           role={profile.role as string}
+          imobiliariaNome={imobiliaria?.nome ?? "Hédiz"}
+          userName={profile.nome}
+          userRole={profile.role as string}
         />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <Header
+            nome={profile.nome}
+            email={profile.email}
+            role={profile.role as string}
+          />
+          <main className="flex-1 overflow-auto">{children}</main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
