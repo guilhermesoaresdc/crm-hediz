@@ -108,10 +108,10 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-64 lg:w-60 border-r bg-card flex flex-col flex-shrink-0",
-          "transition-transform duration-200 ease-out lg:transition-none",
+          "fixed inset-y-0 left-0 z-50 w-64 lg:w-60 border-r bg-card flex flex-col",
+          "transition-transform duration-200 ease-out",
           "lg:translate-x-0",
-          open ? "translate-x-0 shadow-xl" : "-translate-x-full",
+          open ? "translate-x-0 shadow-xl lg:shadow-none" : "-translate-x-full",
         )}
         aria-label="Menu principal"
       >
