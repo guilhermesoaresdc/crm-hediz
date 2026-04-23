@@ -4,12 +4,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getMetaOAuthUrl } from "@/lib/integrations/meta-oauth";
 
 export async function GET(req: Request) {
-  const appId = process.env.NEXT_PUBLIC_META_APP_ID;
+  const appId =
+    process.env.META_APP_ID ?? process.env.NEXT_PUBLIC_META_APP_ID;
   if (!appId) {
     return NextResponse.json(
       {
         error:
-          "NEXT_PUBLIC_META_APP_ID não configurado. Use a configuração manual em /integracoes.",
+          "META_APP_ID não configurado no servidor. Defina META_APP_ID (ou NEXT_PUBLIC_META_APP_ID) nas env vars do Vercel.",
       },
       { status: 500 },
     );

@@ -37,7 +37,8 @@ export async function GET(req: Request) {
     return errorRedirect(origin, "State inválido (possível CSRF)");
   }
 
-  const appId = process.env.NEXT_PUBLIC_META_APP_ID!;
+  const appId =
+    process.env.META_APP_ID ?? process.env.NEXT_PUBLIC_META_APP_ID!;
   const appSecret = process.env.META_APP_SECRET!;
   if (!appId || !appSecret) {
     return errorRedirect(origin, "App Meta não configurado no servidor");

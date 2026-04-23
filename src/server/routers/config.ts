@@ -6,6 +6,22 @@ import { listarAssets, listarPixelsDoAdAccount } from "@/lib/integrations/meta-o
 import { sendInngestEvent } from "@/lib/inngest/client";
 
 export const configRouter = createTRPCRouter({
+  /**
+   * Flags de features baseadas em env vars do servidor.
+   * Usado pelo client pra decidir se mostra botão OAuth.
+   * Evita depender de NEXT_PUBLIC_* (que tem pegadinha de build-time).
+   */
+  features: protectedProcedure.query(() => {
+    const metaAppId =
+      process.env.META_APP_ID ?? process.env.NEXT_PUBLIC_META_APP_ID;
+    const metaAppSecret = process.env.META_APP_SECRET;
+
+    return {
+      metaOauthEnabled: !!(metaAppId && metaAppSecret),
+      inngestEnabled: !!process.env.INNGEST_EVENT_KEY,
+    };
+  }),
+
   obter: protectedProcedure.query(async ({ ctx }) => {
     const { data, error } = await ctx.supabase
       .from("configuracoes_imobiliaria")

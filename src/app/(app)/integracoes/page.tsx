@@ -29,6 +29,7 @@ export default function IntegracoesPage() {
   const metaConectado = searchParams.get("meta") === "conectado";
 
   const { data: config } = api.config.obter.useQuery();
+  const { data: features } = api.config.features.useQuery();
   const { data: syncStatus } = api.config.statusSync.useQuery(undefined, {
     refetchInterval: 10_000,
   });
@@ -68,6 +69,7 @@ export default function IntegracoesPage() {
       <MetaIntegrationCard
         config={config}
         syncStatus={syncStatus}
+        oauthDisponivel={features?.metaOauthEnabled ?? false}
         onChange={() => {
           utils.config.obter.invalidate();
           utils.config.statusSync.invalidate();
@@ -85,14 +87,15 @@ export default function IntegracoesPage() {
 function MetaIntegrationCard({
   config,
   syncStatus,
+  oauthDisponivel,
   onChange,
 }: {
   config: any;
   syncStatus: any;
+  oauthDisponivel: boolean;
   onChange: () => void;
 }) {
   const conectado = !!config?.meta_conectado_em;
-  const oauthDisponivel = !!process.env.NEXT_PUBLIC_META_APP_ID;
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState({
     meta_business_id: "",
@@ -278,18 +281,9 @@ function MetaIntegrationCard({
                 <div className="rounded-md bg-muted/50 p-3 text-sm">
                   <div className="font-medium mb-1">Login com Facebook indisponível</div>
                   <div className="text-muted-foreground text-xs">
-                    O App Meta ainda não está configurado (variável{" "}
-                    <code className="bg-muted px-1 rounded">NEXT_PUBLIC_META_APP_ID</code>).
-                    Use a configuração manual abaixo ou conclua o setup do app em{" "}
-                    <a
-                      href="https://developers.facebook.com/apps"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      developers.facebook.com/apps
-                    </a>
-                    .
+                    Configure <code className="bg-muted px-1 rounded">META_APP_ID</code> e{" "}
+                    <code className="bg-muted px-1 rounded">META_APP_SECRET</code> no Vercel
+                    e faça redeploy. Ou use a configuração manual abaixo.
                   </div>
                 </div>
                 <Button
