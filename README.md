@@ -134,6 +134,35 @@ obrigatório para essas permissões.
 Se o app Meta não estiver configurado, ainda dá para colar os 6 tokens diretamente.
 Útil pra onboarding inicial ou se a imobiliária já tem um System User Token.
 
+## WhatsApp Embedded Signup com Coexistence (CoEx)
+
+Permite o cliente conectar WhatsApp Business **mantendo o app no celular ativo**.
+A migração tradicional pra Cloud API derruba o app — com Coexistence, ambos
+funcionam simultaneamente no mesmo número.
+
+### Setup no painel Meta
+
+1. Acesse o painel do app Meta → **WhatsApp** → **Embedded Signup**
+2. Clique em **New Configuration**
+3. Tipo: **Coexistence**
+4. Adicione URLs permitidas: `https://crm.hediz.com`
+5. Salve e **copie o Configuration ID** (formato `1234567890`)
+6. Adicione no Vercel: `NEXT_PUBLIC_META_EMBEDDED_CONFIG_ID=<config_id>`
+7. Redeploy
+
+Pronto: aparece o botão azul "Conectar com Coexistência" em
+`/ferramentas-chat/canais`. O cliente faz tudo num popup só (login →
+Business → WABA → número), e o canal é criado automaticamente.
+
+### Quando usar cada caminho
+
+| Caminho | Quando |
+|---------|--------|
+| Embedded Signup (Coexistence) | Cliente quer **manter app no celular** + usar CRM |
+| OAuth Facebook tradicional + wizard | Cliente migra 100% pra Cloud API |
+| Cadastrar número novo | Tem número avulso pra dedicar à API (não está em uso) |
+| Manual (colar tokens) | Cliente já tem System User configurado |
+
 ## Jobs agendados (Inngest)
 
 Endpoint Inngest em `/api/inngest` serve as seguintes funções:

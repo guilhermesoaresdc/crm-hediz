@@ -1,12 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Settings2, Phone, Facebook, PhoneCall } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Settings2,
+  Phone,
+  Facebook,
+  PhoneCall,
+  Sparkles,
+} from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { EmbeddedSignupButton } from "@/components/embedded-signup-button";
 
 export default function CanaisPage() {
   const utils = api.useUtils();
@@ -23,6 +33,27 @@ export default function CanaisPage() {
 
   const oauthPronto =
     (features?.metaOauthEnabled ?? false) && !!config?.meta_access_token_present;
+  const embeddedPronto =
+    (features?.embeddedSignupEnabled ?? false) &&
+    !!features?.meta_app_id &&
+    !!features?.embedded_config_id;
+
+  const [signupMsg, setSignupMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function handleSignupSuccess(criados: Array<{ id: string; nome: string; phone: string }>) {
+    if (criados.length === 0) {
+      setSignupMsg({
+        ok: false,
+        text: "Nenhum canal novo criado (talvez já estavam conectados).",
+      });
+    } else {
+      setSignupMsg({
+        ok: true,
+        text: `✓ ${criados.length} canal(is) criado(s): ${criados.map((c) => c.nome).join(", ")}`,
+      });
+      utils.canal.listar.invalidate();
+    }
+  }
 
   return (
     <div className="p-8 space-y-6 max-w-5xl">
@@ -34,7 +65,18 @@ export default function CanaisPage() {
           </p>
         </div>
         {oauthPronto ? (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {embeddedPronto && features && (
+              <EmbeddedSignupButton
+                appId={features.meta_app_id!}
+                configId={features.embedded_config_id!}
+                onSuccess={handleSignupSuccess}
+                onError={(msg) => setSignupMsg({ ok: false, text: msg })}
+              >
+                <Sparkles className="h-4 w-4" />
+                Conectar com Coexistência
+              </EmbeddedSignupButton>
+            )}
             <Link href="/ferramentas-chat/canais/novo-numero">
               <Button variant="outline">
                 <PhoneCall className="h-4 w-4" />
@@ -42,7 +84,7 @@ export default function CanaisPage() {
               </Button>
             </Link>
             <Link href="/ferramentas-chat/canais/novo">
-              <Button>
+              <Button variant="outline">
                 <Plus className="h-4 w-4" />
                 Conectar número existente
               </Button>
@@ -69,6 +111,18 @@ export default function CanaisPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {signupMsg && (
+        <div
+          className={
+            signupMsg.ok
+              ? "rounded-md bg-success/10 border border-success/20 p-3 text-sm text-success"
+              : "rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"
+          }
+        >
+          {signupMsg.text}
+        </div>
       )}
 
       {isLoading ? (

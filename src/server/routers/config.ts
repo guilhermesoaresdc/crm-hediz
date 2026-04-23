@@ -21,10 +21,16 @@ export const configRouter = createTRPCRouter({
     const metaAppId =
       process.env.META_APP_ID ?? process.env.NEXT_PUBLIC_META_APP_ID;
     const metaAppSecret = process.env.META_APP_SECRET;
+    const embeddedConfigId =
+      process.env.NEXT_PUBLIC_META_EMBEDDED_CONFIG_ID ??
+      process.env.META_EMBEDDED_CONFIG_ID;
 
     return {
       metaOauthEnabled: !!(metaAppId && metaAppSecret),
       inngestEnabled: !!process.env.INNGEST_EVENT_KEY,
+      embeddedSignupEnabled: !!(metaAppId && metaAppSecret && embeddedConfigId),
+      meta_app_id: metaAppId ?? null,
+      embedded_config_id: embeddedConfigId ?? null,
     };
   }),
 

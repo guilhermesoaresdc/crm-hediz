@@ -417,3 +417,68 @@ export async function registrarNumeroCloudAPI(
     { messaging_product: "whatsapp", pin },
   );
 }
+
+/**
+ * Embedded Signup com Coexistence: troca o code que vem do FB.login
+ * (com config_id) por um access token e dados do WhatsApp configurado.
+ */
+export async function trocarEmbeddedSignupCode(params: {
+  appId: string;
+  appSecret: string;
+  code: string;
+}): Promise<{
+  access_token: string;
+  expires_in?: number;
+}> {
+  const url = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
+  url.searchParams.set("client_id", params.appId);
+  url.searchParams.set("client_secret", params.appSecret);
+  url.searchParams.set("code", params.code);
+  // Embedded Signup não requer redirect_uri, mas se fornecido, deve casar
+  const res = await fetch(url.toString());
+  const json = await res.json();
+  if (!res.ok) {
+    const msg = json?.error?.message ?? `HTTP ${res.status}`;
+    throw new Error(`Embedded Signup token exchange falhou: ${msg}`);
+  }
+  return json;
+}
+
+/**
+ * Lista todos os números de telefone que o token tem acesso, atravessando
+ * todas as WABAs disponíveis. Usado pra resolver o(s) phone após o
+ * Embedded Signup, já que o code não retorna explicitamente phone_number_id.
+ */
+export async function listarTodosPhones(accessToken: string) {
+  const businesses = await listarBusinesses(accessToken);
+  const phones: Array<{
+    phone_number_id: string;
+    waba_id: string;
+    waba_nome: string;
+    business_id: string;
+    business_nome: string;
+    display_phone_number: string;
+    verified_name?: string;
+    quality_rating?: string;
+  }> = [];
+
+  for (const b of businesses) {
+    const wabas = await listarWhatsappBusinessAccounts(accessToken, b.id);
+    for (const w of wabas) {
+      const ps = await listarPhoneNumbersDaWaba(accessToken, w.id);
+      for (const p of ps) {
+        phones.push({
+          phone_number_id: p.id,
+          waba_id: w.id,
+          waba_nome: w.name,
+          business_id: b.id,
+          business_nome: b.name,
+          display_phone_number: p.display_phone_number,
+          verified_name: p.verified_name,
+          quality_rating: p.quality_rating,
+        });
+      }
+    }
+  }
+  return phones;
+}
