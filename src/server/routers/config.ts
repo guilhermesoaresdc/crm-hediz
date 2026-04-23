@@ -6,6 +6,8 @@ import {
   listarBusinesses,
   listarAssetsDoBusiness,
   listarPixelsDoAdAccount,
+  listarWhatsappBusinessAccounts,
+  listarPhoneNumbersDaWaba,
 } from "@/lib/integrations/meta-oauth";
 import { sendInngestEvent } from "@/lib/inngest/client";
 
@@ -284,6 +286,77 @@ export const configRouter = createTRPCRouter({
       ultima_custos: ultimoPorTipo["meta_custos"] ?? null,
     };
   }),
+
+  /**
+   * Lista WABAs (WhatsApp Business Accounts) da BM selecionada.
+   */
+  listarWabasMeta: adminProcedure
+    .input(z.object({ business_id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Token Meta ausente. Conecte Meta Ads primeiro.",
+        });
+      }
+      return listarWhatsappBusinessAccounts(config.meta_access_token, input.business_id);
+    }),
+
+  listarPhonesWaba: adminProcedure
+    .input(z.object({ waba_id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { data: config } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!config?.meta_access_token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Token Meta ausente" });
+      }
+      return listarPhoneNumbersDaWaba(config.meta_access_token, input.waba_id);
+    }),
+
+  finalizarConexaoWhatsapp: adminProcedure
+    .input(
+      z.object({
+        whatsapp_business_account_id: z.string(),
+        whatsapp_phone_number_id: z.string(),
+        whatsapp_access_token: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: current } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .select("meta_access_token")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+
+      const token =
+        input.whatsapp_access_token ?? current?.meta_access_token ?? null;
+      if (!token) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Nenhum token disponível. Conecte via Facebook primeiro.",
+        });
+      }
+
+      const { error } = await ctx.supabase
+        .from("configuracoes_imobiliaria")
+        .update({
+          whatsapp_business_account_id: input.whatsapp_business_account_id,
+          whatsapp_phone_number_id: input.whatsapp_phone_number_id,
+          whatsapp_access_token: token,
+          whatsapp_conectado_em: new Date().toISOString(),
+        })
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { ok: true };
+    }),
 
   desconectarWhatsapp: adminProcedure.mutation(async ({ ctx }) => {
     const { error } = await ctx.supabase

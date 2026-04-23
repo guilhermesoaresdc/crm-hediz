@@ -78,6 +78,7 @@ export default function IntegracoesPage() {
 
       <WhatsappIntegrationCard
         config={config}
+        oauthDisponivel={features?.metaOauthEnabled ?? false}
         onChange={() => utils.config.obter.invalidate()}
       />
     </div>
@@ -419,13 +420,16 @@ function MetaIntegrationCard({
 
 function WhatsappIntegrationCard({
   config,
+  oauthDisponivel,
   onChange,
 }: {
   config: any;
+  oauthDisponivel: boolean;
   onChange: () => void;
 }) {
   const conectado = !!config?.whatsapp_conectado_em;
-  const [editando, setEditando] = useState(!conectado);
+  const temTokenMeta = !!config?.meta_access_token;
+  const [editando, setEditando] = useState(false);
   const [form, setForm] = useState({
     whatsapp_phone_number_id: "",
     whatsapp_business_account_id: "",
@@ -481,8 +485,16 @@ function WhatsappIntegrationCard({
               <InfoField label="Conectado em" value={formatDate(config?.whatsapp_conectado_em)} />
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
+              {oauthDisponivel && temTokenMeta && (
+                <a href="/integracoes/selecionar-whatsapp">
+                  <Button size="sm" variant="outline" className="gap-2">
+                    <Facebook className="h-3.5 w-3.5" />
+                    Trocar WABA / número
+                  </Button>
+                </a>
+              )}
               <Button size="sm" variant="ghost" onClick={() => setEditando(true)}>
-                Editar
+                Editar manualmente
               </Button>
               <Button
                 size="sm"
@@ -497,6 +509,65 @@ function WhatsappIntegrationCard({
               </Button>
             </div>
           </>
+        )}
+
+        {!conectado && !editando && (
+          <div className="space-y-3">
+            {oauthDisponivel ? (
+              temTokenMeta ? (
+                <>
+                  <a href="/integracoes/selecionar-whatsapp">
+                    <Button className="w-full h-11 bg-green-600 text-white hover:bg-green-600/90">
+                      <MessageCircle className="h-5 w-5" />
+                      Conectar número WhatsApp
+                    </Button>
+                  </a>
+                  <div className="text-xs text-center text-muted-foreground">
+                    Você já está autenticado com Facebook. Só precisa escolher qual WhatsApp
+                    Business Account e número usar.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <a href="/api/auth/meta/start">
+                    <Button className="w-full h-11 bg-[#1877F2] text-white hover:bg-[#1877F2]/90">
+                      <Facebook className="h-5 w-5" />
+                      Continuar com Facebook
+                    </Button>
+                  </a>
+                  <div className="text-xs text-center text-muted-foreground">
+                    Autentique com Facebook primeiro. Depois você escolhe WABA e número.
+                  </div>
+                </>
+              )
+            ) : (
+              <div className="rounded-md bg-muted/50 p-3 text-sm">
+                <div className="font-medium mb-1">Login com Facebook indisponível</div>
+                <div className="text-muted-foreground text-xs">
+                  Configure <code className="bg-muted px-1 rounded">META_APP_ID</code> e{" "}
+                  <code className="bg-muted px-1 rounded">META_APP_SECRET</code> no Vercel, ou
+                  use a configuração manual abaixo.
+                </div>
+              </div>
+            )}
+
+            <div className="relative my-3">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setEditando(true)}
+            >
+              Configuração manual (colar tokens)
+            </Button>
+          </div>
         )}
 
         {editando && (

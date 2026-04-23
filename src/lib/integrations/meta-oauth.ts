@@ -11,6 +11,7 @@
  */
 
 const SCOPES = [
+  // Meta Ads + Lead Ads
   "ads_read",
   "ads_management",
   "leads_retrieval",
@@ -18,6 +19,9 @@ const SCOPES = [
   "pages_manage_ads",
   "pages_read_engagement",
   "business_management",
+  // WhatsApp Cloud API
+  "whatsapp_business_management",
+  "whatsapp_business_messaging",
 ].join(",");
 
 export function getMetaOAuthUrl(params: {
@@ -168,5 +172,64 @@ export async function listarPixelsDoAdAccount(accessToken: string, adAccountId: 
     accessToken,
     { fields: "id,name", limit: 50 },
   ).catch(() => ({ data: [] as MetaPixel[] }));
+  return res.data;
+}
+
+export type MetaWaba = {
+  id: string;
+  name: string;
+  currency?: string;
+  timezone_id?: string;
+};
+
+export type MetaPhoneNumber = {
+  id: string; // phone_number_id pra Cloud API
+  display_phone_number: string;
+  verified_name?: string;
+  quality_rating?: string;
+  code_verification_status?: string;
+};
+
+/**
+ * Lista WhatsApp Business Accounts (WABAs) de uma BM.
+ */
+export async function listarWhatsappBusinessAccounts(
+  accessToken: string,
+  businessId: string,
+) {
+  const [owned, client] = await Promise.all([
+    graphGet<{ data: MetaWaba[] }>(
+      `${businessId}/owned_whatsapp_business_accounts`,
+      accessToken,
+      { fields: "id,name,currency,timezone_id", limit: 100 },
+    ).catch(() => ({ data: [] as MetaWaba[] })),
+    graphGet<{ data: MetaWaba[] }>(
+      `${businessId}/client_whatsapp_business_accounts`,
+      accessToken,
+      { fields: "id,name,currency,timezone_id", limit: 100 },
+    ).catch(() => ({ data: [] as MetaWaba[] })),
+  ]);
+
+  const map = new Map<string, MetaWaba>();
+  for (const w of [...owned.data, ...client.data]) map.set(w.id, w);
+  return Array.from(map.values());
+}
+
+/**
+ * Lista números de telefone registrados em uma WABA.
+ * O id retornado é o phone_number_id usado pra enviar mensagens via Cloud API.
+ */
+export async function listarPhoneNumbersDaWaba(
+  accessToken: string,
+  wabaId: string,
+) {
+  const res = await graphGet<{ data: MetaPhoneNumber[] }>(
+    `${wabaId}/phone_numbers`,
+    accessToken,
+    {
+      fields: "id,display_phone_number,verified_name,quality_rating,code_verification_status",
+      limit: 100,
+    },
+  ).catch(() => ({ data: [] as MetaPhoneNumber[] }));
   return res.data;
 }
