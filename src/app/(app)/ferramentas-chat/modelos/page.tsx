@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { RefreshCw, FileText, Loader2, ExternalLink } from "lucide-react";
+import {
+  RefreshCw,
+  FileText,
+  Loader2,
+  ExternalLink,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +32,10 @@ export default function ModelosPage() {
     onSuccess: () => utils.template.listar.invalidate(),
   });
 
+  const deletar = api.template.deletar.useMutation({
+    onSuccess: () => utils.template.listar.invalidate(),
+  });
+
   return (
     <div className="p-8 space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
@@ -35,17 +46,26 @@ export default function ModelosPage() {
           </p>
         </div>
         {canalId && (
-          <Button
-            onClick={() => sincronizar.mutate({ canal_id: canalId })}
-            disabled={sincronizar.isPending}
-          >
-            {sincronizar.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Sincronizar do Meta
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => sincronizar.mutate({ canal_id: canalId })}
+              disabled={sincronizar.isPending}
+            >
+              {sincronizar.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Sincronizar do Meta
+            </Button>
+            <Link href="/ferramentas-chat/modelos/novo">
+              <Button>
+                <Plus className="h-4 w-4" />
+                Novo modelo
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 
@@ -144,6 +164,23 @@ export default function ModelosPage() {
                           </Badge>
                         </div>
                       </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Deletar template "${t.nome}"? Isso vai removê-lo também da sua WABA no Meta.`,
+                            )
+                          ) {
+                            deletar.mutate({ id: t.id });
+                          }
+                        }}
+                        title="Deletar template"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
 
                     <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1.5 border">

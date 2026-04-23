@@ -268,3 +268,55 @@ export async function listarTemplatesDaWaba(accessToken: string, wabaId: string)
   ).catch(() => ({ data: [] as MetaTemplate[] }));
   return res.data;
 }
+
+export type NovoTemplate = {
+  name: string;
+  language: string;
+  category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
+  components: Array<Record<string, unknown>>;
+};
+
+/**
+ * Cria um template na Meta — retorna PENDING até ser aprovado.
+ */
+export async function criarTemplateNaMeta(
+  accessToken: string,
+  wabaId: string,
+  template: NovoTemplate,
+): Promise<{ id: string; status: string; category?: string }> {
+  const url = `https://graph.facebook.com/v19.0/${wabaId}/message_templates`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(template),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    const msg =
+      body?.error?.error_user_msg ||
+      body?.error?.message ||
+      `HTTP ${res.status}`;
+    throw new Error(`Meta rejeitou o template: ${msg}`);
+  }
+  return body;
+}
+
+/**
+ * Deleta template pelo nome (afeta todos os idiomas desse nome).
+ */
+export async function deletarTemplateNaMeta(
+  accessToken: string,
+  wabaId: string,
+  nome: string,
+) {
+  const url = new URL(`https://graph.facebook.com/v19.0/${wabaId}/message_templates`);
+  url.searchParams.set("name", nome);
+  url.searchParams.set("access_token", accessToken);
+  const res = await fetch(url.toString(), { method: "DELETE" });
+  if (!res.ok) throw new Error(`Falha ao deletar: ${await res.text()}`);
+  return res.json();
+}
