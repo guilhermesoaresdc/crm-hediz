@@ -12,6 +12,7 @@ const titulosPorRota: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/gestao": "Gestão",
   "/campanhas": "Rastreamento Meta",
+  "/atendimento": "Atendimento",
   "/leads": "Leads",
   "/pipeline": "Pipeline",
   "/bolsao": "Bolsão",
