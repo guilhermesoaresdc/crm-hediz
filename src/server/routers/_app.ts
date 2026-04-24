@@ -15,6 +15,7 @@ import { notificacaoRouter } from "./notificacao";
 import { canalRouter } from "./canal";
 import { templateRouter } from "./template";
 import { mensagemRouter } from "./mensagem";
+import { conversaRouter } from "./conversa";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -33,6 +34,7 @@ export const appRouter = createTRPCRouter({
   canal: canalRouter,
   template: templateRouter,
   mensagem: mensagemRouter,
+  conversa: conversaRouter,
 });
 
 export type AppRouter = typeof appRouter;

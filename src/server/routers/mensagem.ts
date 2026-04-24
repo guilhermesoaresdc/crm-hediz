@@ -39,6 +39,32 @@ export const mensagemRouter = createTRPCRouter({
     }),
 
   /**
+   * Lista mensagens de uma conversa específica.
+   */
+  listarPorConversa: protectedProcedure
+    .input(z.object({ conversa_id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      // Garante que a conversa eh da mesma imobiliaria
+      const { data: conv } = await ctx.supabase
+        .from("conversas_whatsapp")
+        .select("id")
+        .eq("id", input.conversa_id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!conv) throw new TRPCError({ code: "NOT_FOUND", message: "Conversa não encontrada" });
+
+      const { data, error } = await ctx.supabase
+        .from("mensagens_whatsapp")
+        .select(
+          "id, direcao, tipo, conteudo, template_nome, status_entrega, wa_message_id, created_at, enviado_por:usuarios!mensagens_whatsapp_enviado_por_id_fkey(id, nome)",
+        )
+        .eq("conversa_id", input.conversa_id)
+        .order("created_at", { ascending: true });
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return data ?? [];
+    }),
+
+  /**
    * Envia uma mensagem pelo WhatsApp Cloud API para um lead.
    * Usa o canal associado à equipe/corretor ou o primeiro ativo da imobiliária.
    */

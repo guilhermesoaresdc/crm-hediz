@@ -15,6 +15,7 @@ import {
   Briefcase,
   Plug,
   MessageCircle,
+  MessagesSquare,
   X,
 } from "lucide-react";
 import { HedizWordmark } from "@/components/hediz-logo";
@@ -46,6 +47,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Operação",
     items: [
+      { href: "/atendimento", label: "Atendimento", icon: MessagesSquare },
       { href: "/leads", label: "Leads", icon: Users },
       { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
       { href: "/bolsao", label: "Bolsão", icon: Inbox },
