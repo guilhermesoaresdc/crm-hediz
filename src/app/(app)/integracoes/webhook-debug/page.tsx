@@ -197,23 +197,38 @@ export default function WebhookDebugPage() {
               {logs.map((log: any) => (
                 <li key={log.id} className="rounded-md border overflow-hidden">
                   <div className="px-3 py-2 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 text-xs">
+                    <div className="flex items-center gap-2 text-xs flex-wrap">
                       <Clock className="h-3 w-3 text-muted-foreground" />
                       <span className="font-mono">{formatDate(log.created_at)}</span>
-                      {log.processado ? (
+                      {log.signature_valid === true && (
+                        <Badge variant="success" className="text-[10px]">
+                          sig ok
+                        </Badge>
+                      )}
+                      {log.signature_valid === false && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          sig inválida
+                        </Badge>
+                      )}
+                      {log.signature_valid === null && (
+                        <Badge variant="outline" className="text-[10px]">
+                          sem sig
+                        </Badge>
+                      )}
+                      {log.status_code != null && (
+                        <Badge
+                          variant={
+                            log.status_code >= 400 ? "destructive" : "outline"
+                          }
+                          className="text-[10px]"
+                        >
+                          {log.status_code}
+                        </Badge>
+                      )}
+                      {log.processado && (
                         <Badge variant="success" className="text-[10px]">
                           <CheckCircle2 className="h-3 w-3 mr-0.5" />
                           processado
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px]">
-                          recebido
-                        </Badge>
-                      )}
-                      {log.erro && (
-                        <Badge variant="destructive" className="text-[10px]">
-                          <XCircle className="h-3 w-3 mr-0.5" />
-                          erro
                         </Badge>
                       )}
                       <span className="text-[11px] text-muted-foreground">
@@ -234,6 +249,11 @@ export default function WebhookDebugPage() {
                       {copiedPayload === log.id ? "Copiado" : "Copiar JSON"}
                     </Button>
                   </div>
+                  {log.erro && (
+                    <div className="px-3 py-2 bg-destructive/5 text-destructive text-xs border-t border-destructive/20">
+                      <strong>Erro:</strong> {log.erro}
+                    </div>
+                  )}
                   <pre className="text-[11px] bg-background p-3 overflow-x-auto max-h-40 font-mono">
                     {JSON.stringify(log.payload_raw, null, 2)}
                   </pre>
