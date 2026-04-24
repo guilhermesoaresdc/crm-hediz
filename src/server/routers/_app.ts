@@ -19,6 +19,7 @@ import { conversaRouter } from "./conversa";
 import { instagramRouter } from "./instagram";
 import { facebookRouter } from "./facebook";
 import { baileysRouter } from "./baileys";
+import { webhookDebugRouter } from "./webhook-debug";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -41,6 +42,7 @@ export const appRouter = createTRPCRouter({
   instagram: instagramRouter,
   facebook: facebookRouter,
   baileys: baileysRouter,
+  webhookDebug: webhookDebugRouter,
 });
 
 export type AppRouter = typeof appRouter;

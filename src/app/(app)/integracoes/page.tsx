@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   CheckCircle2,
   AlertCircle,
@@ -46,11 +47,19 @@ export default function IntegracoesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Integrações</h1>
-        <p className="text-muted-foreground text-sm">
-          Conecte Meta Ads, WhatsApp Business e sincronize campanhas.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Integrações</h1>
+          <p className="text-muted-foreground text-sm">
+            Conecte Meta Ads, WhatsApp Business e sincronize campanhas.
+          </p>
+        </div>
+        <Link
+          href="/integracoes/webhook-debug"
+          className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+        >
+          Debug de webhooks →
+        </Link>
       </div>
 
       {metaError && (
