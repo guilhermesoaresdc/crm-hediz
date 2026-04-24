@@ -18,6 +18,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CountrySelect } from "@/components/ui/country-select";
+import {
+  findCountryByIso,
+  formatPhone,
+  getMaxDigits,
+  getPlaceholder,
+} from "@/lib/countries";
 import { cn } from "@/lib/utils";
 
 type Step =
@@ -30,6 +37,16 @@ type Step =
   | "registrar"
   | "nome_canal";
 
+const STEP_ORDER: Step[] = [
+  "business",
+  "waba",
+  "numero",
+  "metodo_codigo",
+  "verificar_codigo",
+  "pin",
+  "nome_canal",
+];
+
 export default function NovoNumeroPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("business");
@@ -39,6 +56,7 @@ export default function NovoNumeroPage() {
     business_nome: "",
     waba_id: "",
     waba_nome: "",
+    iso: "BR",
     cc: "55",
     phone_number: "",
     verified_name: "",
@@ -78,17 +96,43 @@ export default function NovoNumeroPage() {
 
   // Auto-skip business único
   useEffect(() => {
-    if (businesses?.length === 1) {
+    if (businesses?.length === 1 && step === "business") {
       const b = businesses[0];
       setDados((d) => ({ ...d, business_id: b.id, business_nome: b.name }));
       setStep("waba");
     }
-  }, [businesses]);
+  }, [businesses, step]);
 
   function copiarPin() {
     navigator.clipboard.writeText(dados.pin);
     setDados((d) => ({ ...d, pin_copiado: true }));
     setTimeout(() => setDados((d) => ({ ...d, pin_copiado: false })), 2000);
+  }
+
+  function voltar() {
+    const idx = STEP_ORDER.indexOf(step);
+    if (idx <= 0) {
+      router.push("/ferramentas-chat/canais");
+      return;
+    }
+    setStep(STEP_ORDER[idx - 1]);
+  }
+
+  function setIso(iso: string) {
+    const c = findCountryByIso(iso);
+    if (!c) return;
+    setDados((d) => ({
+      ...d,
+      iso: c.iso,
+      cc: c.code,
+      // Trunca se o novo país tem limite menor
+      phone_number: d.phone_number.slice(0, getMaxDigits(c.iso)),
+    }));
+  }
+
+  function setPhoneInput(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, getMaxDigits(dados.iso));
+    setDados((d) => ({ ...d, phone_number: digits }));
   }
 
   if (loadingBus) {
@@ -101,6 +145,8 @@ export default function NovoNumeroPage() {
       </div>
     );
   }
+
+  const selectedCountry = findCountryByIso(dados.iso);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-3xl space-y-6">
@@ -139,7 +185,7 @@ export default function NovoNumeroPage() {
       {step === "business" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Escolha o Business</CardTitle>
+            <StepHeader titulo="Escolha o Business" onVoltar={voltar} />
           </CardHeader>
           <CardContent className="space-y-2">
             {businesses?.map((b) => (
@@ -166,18 +212,15 @@ export default function NovoNumeroPage() {
       {step === "waba" && (
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle className="text-base">Escolha a WABA</CardTitle>
-                <div className="text-xs text-muted-foreground mt-1">
+            <StepHeader
+              titulo="Escolha a WABA"
+              subtitulo={
+                <>
                   Business: <strong>{dados.business_nome}</strong>
-                </div>
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => setStep("business")}>
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Voltar
-              </Button>
-            </div>
+                </>
+              }
+              onVoltar={voltar}
+            />
           </CardHeader>
           <CardContent className="space-y-2">
             {loadingWabas ? (
@@ -210,38 +253,26 @@ export default function NovoNumeroPage() {
       {step === "numero" && (
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <CardTitle className="text-base">Dados do número</CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setStep("waba")}>
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Voltar
-              </Button>
-            </div>
+            <StepHeader titulo="Dados do número" onVoltar={voltar} />
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-[140px_1fr] gap-3">
               <div className="space-y-1.5">
-                <Label>Código país *</Label>
-                <Input
-                  value={dados.cc}
-                  onChange={(e) =>
-                    setDados((d) => ({ ...d, cc: e.target.value.replace(/\D/g, "") }))
-                  }
-                  placeholder="55"
-                />
+                <Label>País *</Label>
+                <CountrySelect value={dados.iso} onChange={setIso} />
               </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Número (sem código país) *</Label>
+              <div className="space-y-1.5">
+                <Label>Número *</Label>
                 <Input
-                  value={dados.phone_number}
-                  onChange={(e) =>
-                    setDados((d) => ({
-                      ...d,
-                      phone_number: e.target.value.replace(/\D/g, ""),
-                    }))
-                  }
-                  placeholder="11999999999"
+                  value={formatPhone(dados.phone_number, dados.iso)}
+                  onChange={(e) => setPhoneInput(e.target.value)}
+                  placeholder={getPlaceholder(dados.iso)}
+                  inputMode="tel"
+                  autoComplete="tel-national"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Só dígitos. A formatação é aplicada automaticamente.
+                </p>
               </div>
             </div>
 
@@ -256,8 +287,9 @@ export default function NovoNumeroPage() {
                 placeholder="Hédiz Imobiliária"
               />
               <p className="text-[11px] text-muted-foreground">
-                Nome comercial mostrado nas conversas. Máx 25 caracteres. A Meta verifica
-                se bate com a marca registrada.
+                Nome comercial mostrado nas conversas. Máx 25 caracteres. Deve ser o
+                nome da empresa/marca (não nome pessoal) — a Meta rejeita nomes que
+                violam as diretrizes.
               </p>
             </div>
 
@@ -267,25 +299,35 @@ export default function NovoNumeroPage() {
               </div>
             )}
 
-            <Button
-              className="w-full"
-              onClick={() =>
-                adicionar.mutate({
-                  waba_id: dados.waba_id,
-                  cc: dados.cc,
-                  phone_number: dados.phone_number,
-                  verified_name: dados.verified_name,
-                })
-              }
-              disabled={
-                adicionar.isPending ||
-                !dados.cc ||
-                !dados.phone_number ||
-                !dados.verified_name
-              }
-            >
-              {adicionar.isPending ? "Cadastrando..." : "Cadastrar e ir pra verificação"}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={voltar}
+                disabled={adicionar.isPending}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Voltar
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() =>
+                  adicionar.mutate({
+                    waba_id: dados.waba_id,
+                    cc: dados.cc,
+                    phone_number: dados.phone_number,
+                    verified_name: dados.verified_name,
+                  })
+                }
+                disabled={
+                  adicionar.isPending ||
+                  !dados.cc ||
+                  !dados.phone_number ||
+                  !dados.verified_name
+                }
+              >
+                {adicionar.isPending ? "Cadastrando..." : "Cadastrar e ir pra verificação"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -294,11 +336,13 @@ export default function NovoNumeroPage() {
       {step === "metodo_codigo" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Como receber o código?</CardTitle>
+            <StepHeader titulo="Como receber o código?" onVoltar={voltar} />
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-md bg-muted/50 p-3 text-xs">
-              <strong>Número cadastrado:</strong> +{dados.cc} {dados.phone_number}
+              <strong>Número cadastrado:</strong>{" "}
+              {selectedCountry?.flag} +{dados.cc}{" "}
+              {formatPhone(dados.phone_number, dados.iso)}
               <br />
               Você vai receber um código de 6 dígitos pra confirmar a posse.
             </div>
@@ -340,20 +384,26 @@ export default function NovoNumeroPage() {
               </div>
             )}
 
-            <Button
-              className="w-full"
-              onClick={() =>
-                requisitar.mutate({
-                  phone_number_id: dados.phone_number_id,
-                  method: dados.metodo_codigo,
-                })
-              }
-              disabled={requisitar.isPending}
-            >
-              {requisitar.isPending
-                ? "Enviando..."
-                : `Enviar código por ${dados.metodo_codigo === "SMS" ? "SMS" : "voz"}`}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={voltar} disabled={requisitar.isPending}>
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Voltar
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() =>
+                  requisitar.mutate({
+                    phone_number_id: dados.phone_number_id,
+                    method: dados.metodo_codigo,
+                  })
+                }
+                disabled={requisitar.isPending}
+              >
+                {requisitar.isPending
+                  ? "Enviando..."
+                  : `Enviar código por ${dados.metodo_codigo === "SMS" ? "SMS" : "voz"}`}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -362,12 +412,13 @@ export default function NovoNumeroPage() {
       {step === "verificar_codigo" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Insira o código recebido</CardTitle>
+            <StepHeader titulo="Insira o código recebido" onVoltar={voltar} />
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-md bg-success/10 border border-success/20 p-3 text-xs text-success">
-              ✓ Código enviado por {dados.metodo_codigo === "SMS" ? "SMS" : "voz"} para +
-              {dados.cc} {dados.phone_number}.
+              ✓ Código enviado por {dados.metodo_codigo === "SMS" ? "SMS" : "voz"} para{" "}
+              {selectedCountry?.flag} +{dados.cc}{" "}
+              {formatPhone(dados.phone_number, dados.iso)}.
             </div>
 
             <div className="space-y-1.5">
@@ -380,6 +431,7 @@ export default function NovoNumeroPage() {
                 }
                 placeholder="123456"
                 className="text-center text-lg tracking-widest font-mono"
+                inputMode="numeric"
               />
             </div>
 
@@ -389,7 +441,11 @@ export default function NovoNumeroPage() {
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={voltar} disabled={verificar.isPending}>
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Voltar
+              </Button>
               <Button
                 onClick={() =>
                   verificar.mutate({
@@ -401,10 +457,7 @@ export default function NovoNumeroPage() {
               >
                 {verificar.isPending ? "Verificando..." : "Verificar"}
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setStep("metodo_codigo")}
-              >
+              <Button variant="ghost" onClick={() => setStep("metodo_codigo")}>
                 Reenviar código
               </Button>
             </div>
@@ -416,9 +469,15 @@ export default function NovoNumeroPage() {
       {step === "pin" && (
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4" />
-              <CardTitle className="text-base">PIN 2FA (6 dígitos)</CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4" />
+                <CardTitle className="text-base">PIN 2FA (6 dígitos)</CardTitle>
+              </div>
+              <Button size="sm" variant="ghost" onClick={voltar}>
+                <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                Voltar
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -484,17 +543,24 @@ export default function NovoNumeroPage() {
       {step === "nome_canal" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" />
-              Número registrado! Dê um apelido
-            </CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-success" />
+                Número registrado! Dê um apelido
+              </CardTitle>
+              <Button size="sm" variant="ghost" onClick={voltar}>
+                <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                Voltar
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-md bg-success/10 border border-success/20 p-3 text-sm">
               <div className="font-semibold text-success mb-1">Tudo pronto!</div>
               <div className="text-xs">
-                +{dados.cc} {dados.phone_number} ({dados.verified_name}) está ativo na
-                Cloud API. Falta só dar um apelido pra esse canal no CRM.
+                {selectedCountry?.flag} +{dados.cc}{" "}
+                {formatPhone(dados.phone_number, dados.iso)} ({dados.verified_name}) está
+                ativo na Cloud API. Falta só dar um apelido pra esse canal no CRM.
               </div>
             </div>
 
@@ -521,7 +587,7 @@ export default function NovoNumeroPage() {
                   whatsapp_business_account_id: dados.waba_id,
                   whatsapp_business_account_nome: dados.waba_nome,
                   whatsapp_phone_number_id: dados.phone_number_id,
-                  whatsapp_phone_display: `+${dados.cc} ${dados.phone_number}`,
+                  whatsapp_phone_display: `+${dados.cc} ${formatPhone(dados.phone_number, dados.iso)}`,
                   verified_name: dados.verified_name,
                 })
               }
@@ -532,6 +598,31 @@ export default function NovoNumeroPage() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function StepHeader({
+  titulo,
+  subtitulo,
+  onVoltar,
+}: {
+  titulo: string;
+  subtitulo?: React.ReactNode;
+  onVoltar: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <CardTitle className="text-base">{titulo}</CardTitle>
+        {subtitulo && (
+          <div className="text-xs text-muted-foreground mt-1">{subtitulo}</div>
+        )}
+      </div>
+      <Button size="sm" variant="ghost" onClick={onVoltar}>
+        <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+        Voltar
+      </Button>
     </div>
   );
 }
