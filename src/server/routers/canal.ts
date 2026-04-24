@@ -16,6 +16,7 @@ import {
   obterStatusPhoneNumber,
   obterAnalyticsWaba,
   obterConversationAnalytics,
+  inscreverAppNaWaba,
 } from "@/lib/integrations/meta-oauth";
 
 export const canalRouter = createTRPCRouter({
@@ -141,6 +142,22 @@ export const canalRouter = createTRPCRouter({
         .select()
         .single();
       if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+
+      // Inscreve o app na WABA pra receber webhooks (msgs recebidas, status etc).
+      // Sem isso, a Meta nao envia nada pro nosso endpoint mesmo com o webhook
+      // verificado. Ignora falha (user pode reenviar manualmente depois).
+      try {
+        await inscreverAppNaWaba(
+          config.meta_access_token,
+          input.whatsapp_business_account_id,
+        );
+      } catch (err) {
+        console.warn(
+          `[canal.criar] inscreverAppNaWaba(${input.whatsapp_business_account_id}) falhou:`,
+          err,
+        );
+      }
+
       return data;
     }),
 
@@ -598,5 +615,34 @@ export const canalRouter = createTRPCRouter({
         canal.access_token,
         canal.whatsapp_business_account_id,
       );
+    }),
+
+  /**
+   * Inscreve manualmente a WABA deste canal no app pra receber webhooks.
+   * Idempotente — pode chamar de novo sem problema.
+   */
+  inscreverNoWebhook: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("access_token, whatsapp_business_account_id")
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Canal não encontrado" });
+      try {
+        await inscreverAppNaWaba(
+          canal.access_token,
+          canal.whatsapp_business_account_id,
+        );
+        return { ok: true };
+      } catch (err) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     }),
 });

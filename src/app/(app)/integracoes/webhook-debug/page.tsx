@@ -159,20 +159,7 @@ export default function WebhookDebugPage() {
           ) : (
             <ul className="space-y-2">
               {stats.canais.map((c: any) => (
-                <li
-                  key={c.id}
-                  className="flex items-center justify-between p-3 rounded-md border text-sm"
-                >
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{c.nome}</div>
-                    <div className="text-xs text-muted-foreground font-mono truncate">
-                      {c.whatsapp_phone_display} · ID {c.whatsapp_phone_number_id}
-                    </div>
-                  </div>
-                  <Badge variant={c.ativo ? "success" : "secondary"}>
-                    {c.ativo ? "ativo" : "inativo"}
-                  </Badge>
-                </li>
+                <CanalRow key={c.id} canal={c} />
               ))}
             </ul>
           )}
@@ -257,6 +244,63 @@ export default function WebhookDebugPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function CanalRow({ canal }: { canal: any }) {
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [erro, setErro] = useState<string | null>(null);
+
+  const inscrever = api.canal.inscreverNoWebhook.useMutation({
+    onSuccess: () => {
+      setStatus("success");
+      setErro(null);
+      setTimeout(() => setStatus("idle"), 3000);
+    },
+    onError: (err) => {
+      setStatus("error");
+      setErro(err.message);
+    },
+  });
+
+  return (
+    <li className="p-3 rounded-md border text-sm space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="min-w-0">
+          <div className="font-medium truncate">{canal.nome}</div>
+          <div className="text-xs text-muted-foreground font-mono truncate">
+            {canal.whatsapp_phone_display} · ID {canal.whatsapp_phone_number_id}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={canal.ativo ? "success" : "secondary"}>
+            {canal.ativo ? "ativo" : "inativo"}
+          </Badge>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => inscrever.mutate({ id: canal.id })}
+            disabled={inscrever.isPending}
+          >
+            {inscrever.isPending
+              ? "Inscrevendo..."
+              : status === "success"
+                ? "✓ Inscrito"
+                : "Inscrever no webhook"}
+          </Button>
+        </div>
+      </div>
+      {status === "error" && erro && (
+        <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1">
+          {erro}
+        </div>
+      )}
+      {status === "success" && (
+        <div className="text-xs text-success bg-success/10 border border-success/20 rounded px-2 py-1">
+          WABA inscrita com sucesso. Agora a Meta vai começar a mandar webhooks.
+        </div>
+      )}
+    </li>
   );
 }
 
