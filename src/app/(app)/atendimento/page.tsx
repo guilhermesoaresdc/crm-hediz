@@ -14,22 +14,27 @@ import {
   ArrowLeft,
   Clock,
   AlertCircle,
+  MessagesSquare,
 } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { cn, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-type Channel = "whatsapp" | "instagram" | "facebook";
+type Channel = "todos" | "whatsapp" | "instagram" | "facebook";
 
 export default function AtendimentoPage() {
-  const [channel, setChannel] = useState<Channel>("whatsapp");
+  const [channel, setChannel] = useState<Channel>("todos");
   const [busca, setBusca] = useState("");
   const [conversaId, setConversaId] = useState<string | null>(null);
 
+  // WhatsApp conversas sempre carregadas (usadas em "todos" e "whatsapp")
   const { data: conversas, isLoading } = api.conversa.listar.useQuery(
     { busca: busca || undefined },
-    { enabled: channel === "whatsapp", refetchInterval: 15_000 },
+    {
+      enabled: channel === "whatsapp" || channel === "todos",
+      refetchInterval: 8_000,
+    },
   );
 
   const { data: canaisIg } = api.instagram.listar.useQuery();
@@ -40,6 +45,14 @@ export default function AtendimentoPage() {
       {/* Tabs de canais (omnichannel) */}
       <div className="border-b bg-card px-3 sm:px-4 pt-3 sm:pt-4">
         <div className="flex items-end gap-1 overflow-x-auto">
+          <ChannelTab
+            active={channel === "todos"}
+            onClick={() => setChannel("todos")}
+            icon={<MessagesSquare className="h-4 w-4" />}
+            label="Todos"
+            badge={(conversas?.length ?? 0)}
+            color="text-primary"
+          />
           <ChannelTab
             active={channel === "whatsapp"}
             onClick={() => setChannel("whatsapp")}
@@ -67,7 +80,7 @@ export default function AtendimentoPage() {
         </div>
       </div>
 
-      {channel !== "whatsapp" ? (
+      {channel === "instagram" || channel === "facebook" ? (
         <EmBreve channel={channel} />
       ) : (
         <div className="flex-1 flex min-h-0">
@@ -177,7 +190,7 @@ function ConversaView({
   const { data: conversa } = api.conversa.detalhes.useQuery({ id: conversaId });
   const { data: mensagens, isLoading } = api.mensagem.listarPorConversa.useQuery(
     { conversa_id: conversaId },
-    { refetchInterval: 15_000 },
+    { refetchInterval: 5_000 },
   );
   const { data: templates } = api.template.listar.useQuery(
     conversa?.canal_id ? { canal_id: conversa.canal_id } : undefined,
@@ -517,7 +530,7 @@ function EmptyChat() {
   );
 }
 
-function EmBreve({ channel }: { channel: Channel }) {
+function EmBreve({ channel }: { channel: "instagram" | "facebook" }) {
   const cfg = {
     instagram: {
       icon: <Instagram className="h-7 w-7" />,
@@ -534,13 +547,6 @@ function EmBreve({ channel }: { channel: Channel }) {
         "Mensagens e comentários de Pages. Conecte em Canais → Facebook Pages.",
       cor: "bg-blue-600 text-white",
       href: "/ferramentas-chat/canais/facebook",
-    },
-    whatsapp: {
-      icon: <MessageCircle className="h-7 w-7" />,
-      nome: "WhatsApp",
-      descricao: "",
-      cor: "bg-green-600 text-white",
-      href: "/ferramentas-chat/canais",
     },
   }[channel];
 

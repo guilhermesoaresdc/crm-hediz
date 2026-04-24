@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Send } from "lucide-react";
+import { Send, AlertCircle, FileText, MessageCircle, ExternalLink } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,17 +36,9 @@ export default function LeadDetailPage() {
 
   const { data: mensagens } = api.mensagem.listarPorLead.useQuery(
     { lead_id: id },
-    { enabled: !!id },
+    { enabled: !!id, refetchInterval: 5_000 },
   );
 
-  const enviarMsg = api.mensagem.enviar.useMutation({
-    onSuccess: () => {
-      utils.lead.detalhes.invalidate({ id });
-      utils.mensagem.listarPorLead.invalidate({ lead_id: id });
-    },
-  });
-
-  const [novaMsg, setNovaMsg] = useState("");
 
   if (isLoading) return <div className="p-4 sm:p-6 lg:p-8">Carregando...</div>;
   if (!lead) return <div className="p-4 sm:p-6 lg:p-8">Lead não encontrado</div>;
@@ -110,77 +103,12 @@ export default function LeadDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>WhatsApp</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {mensagens && mensagens.length > 0 && (
-                <div className="max-h-80 overflow-y-auto space-y-2 rounded-md border bg-muted/30 p-3">
-                  {mensagens.map((m) => (
-                    <div
-                      key={m.id}
-                      className={`rounded-md px-3 py-2 text-sm max-w-[85%] ${
-                        m.direcao === "enviada"
-                          ? "ml-auto bg-primary text-primary-foreground"
-                          : "bg-background border"
-                      }`}
-                    >
-                      <div className="whitespace-pre-wrap break-words">
-                        {m.conteudo || (m.template_nome ? `Template: ${m.template_nome}` : "—")}
-                      </div>
-                      <div
-                        className={`mt-1 text-[11px] ${
-                          m.direcao === "enviada"
-                            ? "text-primary-foreground/70"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {formatDate(m.created_at)}
-                        {m.status_entrega && ` · ${m.status_entrega}`}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!l.primeira_mensagem_em && (
-                <p className="text-xs text-muted-foreground">
-                  Primeira mensagem: o lead sai do timer de 5min e não vai pro bolsão.
-                </p>
-              )}
-
-              <textarea
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder={`Olá ${l.nome}, tudo bem?`}
-                value={novaMsg}
-                onChange={(e) => setNovaMsg(e.target.value)}
-                disabled={enviarMsg.isPending}
-              />
-
-              {enviarMsg.error && (
-                <p className="text-sm text-destructive">{enviarMsg.error.message}</p>
-              )}
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground truncate">
-                  Para: {l.whatsapp}
-                </span>
-                <Button
-                  disabled={!novaMsg.trim() || enviarMsg.isPending}
-                  onClick={() => {
-                    enviarMsg.mutate(
-                      { lead_id: l.id, tipo: "texto", texto: novaMsg },
-                      { onSuccess: () => setNovaMsg("") },
-                    );
-                  }}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {enviarMsg.isPending ? "Enviando..." : "Enviar"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <WhatsAppCard
+            leadId={l.id}
+            leadNome={l.nome}
+            whatsapp={l.whatsapp}
+            mensagens={mensagens ?? []}
+          />
 
           <Card>
             <CardHeader>
@@ -254,5 +182,241 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right break-all">{value}</span>
     </div>
+  );
+}
+
+function WhatsAppCard({
+  leadId,
+  leadNome,
+  whatsapp,
+  mensagens,
+}: {
+  leadId: string;
+  leadNome: string;
+  whatsapp: string;
+  mensagens: any[];
+}) {
+  const utils = api.useUtils();
+  const [texto, setTexto] = useState("");
+  const [modo, setModo] = useState<"texto" | "template">("texto");
+  const [templateId, setTemplateId] = useState<string>("");
+
+  const { data: templates } = api.template.listar.useQuery();
+  const templatesAprovados = (templates ?? []).filter(
+    (t: any) => t.status === "APPROVED",
+  );
+
+  const enviar = api.mensagem.enviar.useMutation({
+    onSuccess: () => {
+      utils.mensagem.listarPorLead.invalidate({ lead_id: leadId });
+      utils.lead.detalhes.invalidate({ id: leadId });
+    },
+  });
+
+  // Janela de 24h
+  const ultimaRecebida = mensagens
+    .filter((m) => m.direcao === "recebida")
+    .slice(-1)[0];
+  const dentroJanela24h = ultimaRecebida
+    ? Date.now() - new Date(ultimaRecebida.created_at).getTime() <
+      24 * 60 * 60 * 1000
+    : false;
+
+  function onEnviar() {
+    if (modo === "texto") {
+      if (!texto.trim()) return;
+      enviar.mutate(
+        { lead_id: leadId, tipo: "texto", texto },
+        { onSuccess: () => setTexto("") },
+      );
+    } else {
+      const tpl = templatesAprovados.find((t: any) => t.id === templateId);
+      if (!tpl) return;
+      enviar.mutate(
+        {
+          lead_id: leadId,
+          tipo: "template",
+          template_nome: tpl.nome,
+          template_idioma: tpl.idioma ?? "pt_BR",
+        },
+        { onSuccess: () => setTemplateId("") },
+      );
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-green-600" />
+            WhatsApp
+          </CardTitle>
+          <Link href="/atendimento">
+            <Button size="sm" variant="ghost" className="text-xs">
+              Abrir no Atendimento
+              <ExternalLink className="h-3 w-3 ml-1" />
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {mensagens.length > 0 ? (
+          <div className="max-h-96 overflow-y-auto space-y-2 rounded-md border bg-muted/20 p-3">
+            {mensagens.map((m) => (
+              <div
+                key={m.id}
+                className={cn(
+                  "flex",
+                  m.direcao === "enviada" ? "justify-end" : "justify-start",
+                )}
+              >
+                <div
+                  className={cn(
+                    "rounded-md px-3 py-2 text-sm max-w-[85%]",
+                    m.direcao === "enviada"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border",
+                  )}
+                >
+                  <div className="whitespace-pre-wrap break-words">
+                    {m.conteudo ||
+                      (m.template_nome ? `📋 Template: ${m.template_nome}` : "—")}
+                  </div>
+                  <div
+                    className={cn(
+                      "mt-1 text-[11px]",
+                      m.direcao === "enviada"
+                        ? "text-primary-foreground/70"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {formatDate(m.created_at)}
+                    {m.status_entrega && ` · ${m.status_entrega}`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center text-xs text-muted-foreground py-3">
+            Nenhuma mensagem ainda.
+          </div>
+        )}
+
+        {!dentroJanela24h && (
+          <div className="flex items-start gap-2 text-xs bg-warning/10 text-warning border border-warning/20 rounded-md p-2">
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong>Fora da janela de 24h.</strong> WhatsApp oficial só permite
+              texto livre depois que o cliente responde. Use um template aprovado
+              pra iniciar o contato.
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1 text-xs">
+          <button
+            onClick={() => setModo("texto")}
+            className={cn(
+              "px-2 py-1 rounded transition-colors",
+              modo === "texto"
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:bg-accent",
+            )}
+          >
+            Texto livre
+          </button>
+          <button
+            onClick={() => setModo("template")}
+            className={cn(
+              "px-2 py-1 rounded transition-colors inline-flex items-center gap-1",
+              modo === "template"
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:bg-accent",
+            )}
+          >
+            <FileText className="h-3 w-3" />
+            Template ({templatesAprovados.length})
+          </button>
+        </div>
+
+        {modo === "texto" ? (
+          <div className="flex gap-2 items-end">
+            <textarea
+              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none min-h-[60px]"
+              placeholder={
+                dentroJanela24h
+                  ? `Olá ${leadNome}, tudo bem?`
+                  : "Cliente fora da janela de 24h — use um template."
+              }
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onEnviar();
+                }
+              }}
+              disabled={enviar.isPending}
+            />
+            <Button
+              disabled={!texto.trim() || enviar.isPending}
+              onClick={onEnviar}
+              size="sm"
+              className="h-10"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <select
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              className="flex-1 h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Selecione um template aprovado...</option>
+              {templatesAprovados.map((t: any) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome} ({t.idioma})
+                </option>
+              ))}
+            </select>
+            <Button
+              onClick={onEnviar}
+              disabled={!templateId || enviar.isPending}
+              size="sm"
+              className="h-10"
+            >
+              <Send className="h-4 w-4 mr-1" />
+              Enviar
+            </Button>
+          </div>
+        )}
+
+        {modo === "template" && templatesAprovados.length === 0 && (
+          <div className="text-xs text-muted-foreground">
+            Nenhum template aprovado.{" "}
+            <Link
+              href="/ferramentas-chat/modelos/novo"
+              className="text-primary hover:underline"
+            >
+              Criar agora →
+            </Link>
+          </div>
+        )}
+
+        {enviar.error && (
+          <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1">
+            {enviar.error.message}
+          </div>
+        )}
+
+        <div className="text-xs text-muted-foreground">
+          Para: <span className="font-mono">{whatsapp}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
