@@ -13,6 +13,9 @@ import {
   obterWhatsappBusinessProfile,
   atualizarWhatsappBusinessProfile,
   obterDetalhesWaba,
+  obterStatusPhoneNumber,
+  obterAnalyticsWaba,
+  obterConversationAnalytics,
 } from "@/lib/integrations/meta-oauth";
 
 export const canalRouter = createTRPCRouter({
@@ -470,5 +473,130 @@ export const canalRouter = createTRPCRouter({
         .eq("id", canal.id);
 
       return { ok: true, total: templates.length, saved };
+    }),
+
+  /**
+   * Status completo do canal: mensagens enviadas, tier, quality rating,
+   * phone numbers da WABA, BM status, etc.
+   * Faz chamadas à Meta API e salva snapshot no banco.
+   */
+  statusCompleto: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select(
+          "id, nome, access_token, whatsapp_business_account_id, whatsapp_phone_number_id, whatsapp_phone_display, verified_name, quality_rating, messaging_limit_tier, name_status, throughput_level, phone_status, msgs_enviadas_30d, msgs_entregues_30d, conversas_pagas_30d, custo_30d_cents, is_official_business_account, ultimo_sync_status_em, meta_business_id, meta_business_nome, meta_business_status, waba_status",
+        )
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal) throw new TRPCError({ code: "NOT_FOUND", message: "Canal não encontrado" });
+
+      const { access_token, ...safe } = canal;
+      return safe;
+    }),
+
+  /**
+   * Sincroniza com a Meta: status do phone, analytics dos últimos 30 dias,
+   * phone numbers da WABA, BM info. Salva tudo no banco.
+   */
+  sincronizarStatus: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("id, access_token, whatsapp_business_account_id, whatsapp_phone_number_id")
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal) throw new TRPCError({ code: "NOT_FOUND", message: "Canal não encontrado" });
+
+      const now = Math.floor(Date.now() / 1000);
+      const thirtyDaysAgo = now - 30 * 24 * 60 * 60;
+
+      const [status, waba, analytics, convAnalytics] = await Promise.all([
+        obterStatusPhoneNumber(canal.access_token, canal.whatsapp_phone_number_id),
+        obterDetalhesWaba(canal.access_token, canal.whatsapp_business_account_id),
+        obterAnalyticsWaba(
+          canal.access_token,
+          canal.whatsapp_business_account_id,
+          thirtyDaysAgo,
+          now,
+          [canal.whatsapp_phone_number_id],
+        ),
+        obterConversationAnalytics(
+          canal.access_token,
+          canal.whatsapp_business_account_id,
+          thirtyDaysAgo,
+          now,
+        ),
+      ]);
+
+      const enviadas =
+        analytics?.data_points?.reduce((s, p) => s + (p.sent ?? 0), 0) ?? 0;
+      const entregues =
+        analytics?.data_points?.reduce((s, p) => s + (p.delivered ?? 0), 0) ?? 0;
+
+      let conversas = 0;
+      let custoCents = 0;
+      for (const bucket of convAnalytics?.data ?? []) {
+        for (const p of bucket.data_points ?? []) {
+          conversas += p.conversation ?? 0;
+          custoCents += Math.round((p.cost ?? 0) * 100);
+        }
+      }
+
+      await ctx.supabase
+        .from("canais_whatsapp")
+        .update({
+          messaging_limit_tier: status?.messaging_limit_tier ?? null,
+          name_status: status?.name_status ?? null,
+          throughput_level: status?.throughput?.level ?? null,
+          phone_status: status?.status ?? null,
+          quality_rating: status?.quality_rating ?? null,
+          is_official_business_account: status?.is_official_business_account ?? false,
+          msgs_enviadas_30d: enviadas,
+          msgs_entregues_30d: entregues,
+          conversas_pagas_30d: conversas,
+          custo_30d_cents: custoCents,
+          meta_business_id: waba?.owner_business_info?.id ?? null,
+          meta_business_nome: waba?.owner_business_info?.name ?? null,
+          meta_business_status: waba?.business_verification_status ?? null,
+          waba_status: waba?.account_review_status ?? null,
+          ultimo_sync_status_em: new Date().toISOString(),
+          ultimo_sync_perfil_em: new Date().toISOString(),
+        })
+        .eq("id", canal.id);
+
+      return {
+        ok: true,
+        tier: status?.messaging_limit_tier,
+        enviadas,
+        entregues,
+        conversas,
+        custo_cents: custoCents,
+      };
+    }),
+
+  /**
+   * Lista todos os phone_numbers da WABA (mais do que só o cadastrado neste canal).
+   * Usado pra ver o limite de registros e quais números tão disponíveis.
+   */
+  listarPhonesDaWaba: adminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("access_token, whatsapp_business_account_id")
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal) throw new TRPCError({ code: "NOT_FOUND", message: "Canal não encontrado" });
+
+      return listarPhoneNumbersDaWaba(
+        canal.access_token,
+        canal.whatsapp_business_account_id,
+      );
     }),
 });

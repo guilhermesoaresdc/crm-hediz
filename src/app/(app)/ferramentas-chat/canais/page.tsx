@@ -10,6 +10,10 @@ import {
   Facebook,
   PhoneCall,
   MessageCircle,
+  BarChart3,
+  Instagram,
+  Smartphone,
+  ChevronRight,
 } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -231,6 +235,14 @@ export default function CanaisPage() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-1 justify-end">
+                        <Link
+                          href={`/ferramentas-chat/canais/${c.id}/status`}
+                          title="Ver status + limites"
+                        >
+                          <Button size="sm" variant="ghost">
+                            <BarChart3 className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -262,6 +274,34 @@ export default function CanaisPage() {
         </Card>
       )}
 
+      {/* Outros canais (omnichannel) */}
+      <div>
+        <h2 className="text-base font-semibold mb-3">Outros canais</h2>
+        <div className="grid sm:grid-cols-3 gap-3">
+          <CanalCard
+            href="/ferramentas-chat/canais/instagram"
+            icon={<Instagram className="h-5 w-5" />}
+            cor="bg-gradient-to-br from-pink-500 to-purple-600"
+            titulo="Instagram"
+            descricao="DMs e comentários via Meta OAuth"
+          />
+          <CanalCard
+            href="/ferramentas-chat/canais/facebook"
+            icon={<Facebook className="h-5 w-5" />}
+            cor="bg-blue-600"
+            titulo="Facebook Pages"
+            descricao="Messenger e comentários"
+          />
+          <CanalCard
+            href="/ferramentas-chat/canais/baileys"
+            icon={<Smartphone className="h-5 w-5" />}
+            cor="bg-green-600"
+            titulo="WhatsApp QR"
+            descricao="Via Baileys/Evolution API (não oficial)"
+          />
+        </div>
+      </div>
+
       {finalizarCanais && (
         <FinalizarConfigModal
           canais={finalizarCanais}
@@ -280,5 +320,39 @@ export default function CanaisPage() {
         />
       )}
     </div>
+  );
+}
+
+function CanalCard({
+  href,
+  icon,
+  cor,
+  titulo,
+  descricao,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  cor: string;
+  titulo: string;
+  descricao: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="block rounded-lg border hover:border-primary hover:bg-accent/50 transition-colors p-3 group"
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={`h-10 w-10 rounded-lg ${cor} text-white inline-flex items-center justify-center flex-shrink-0`}
+        >
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm">{titulo}</div>
+          <div className="text-xs text-muted-foreground truncate">{descricao}</div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+      </div>
+    </Link>
   );
 }
