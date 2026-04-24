@@ -32,6 +32,9 @@ export default function AtendimentoPage() {
     { enabled: channel === "whatsapp", refetchInterval: 15_000 },
   );
 
+  const { data: canaisIg } = api.instagram.listar.useQuery();
+  const { data: canaisFb } = api.facebook.listar.useQuery();
+
   return (
     <div className="h-full flex flex-col">
       {/* Tabs de canais (omnichannel) */}
@@ -50,16 +53,16 @@ export default function AtendimentoPage() {
             onClick={() => setChannel("instagram")}
             icon={<Instagram className="h-4 w-4" />}
             label="Instagram"
-            disabled
-            soon
+            badge={canaisIg?.length ?? 0}
+            color="text-pink-600"
           />
           <ChannelTab
             active={channel === "facebook"}
             onClick={() => setChannel("facebook")}
             icon={<Facebook className="h-4 w-4" />}
             label="Facebook"
-            disabled
-            soon
+            badge={canaisFb?.length ?? 0}
+            color="text-blue-600"
           />
         </div>
       </div>
@@ -519,20 +522,25 @@ function EmBreve({ channel }: { channel: Channel }) {
     instagram: {
       icon: <Instagram className="h-7 w-7" />,
       nome: "Instagram",
-      descricao: "DMs e comentários do Instagram em um único lugar.",
+      descricao:
+        "DMs e comentários do Instagram. Conecte contas Professional em Canais → Instagram.",
       cor: "bg-gradient-to-br from-pink-500 to-purple-600 text-white",
+      href: "/ferramentas-chat/canais/instagram",
     },
     facebook: {
       icon: <Facebook className="h-7 w-7" />,
       nome: "Facebook",
-      descricao: "Mensagens e comentários de páginas do Facebook.",
+      descricao:
+        "Mensagens e comentários de Pages. Conecte em Canais → Facebook Pages.",
       cor: "bg-blue-600 text-white",
+      href: "/ferramentas-chat/canais/facebook",
     },
     whatsapp: {
       icon: <MessageCircle className="h-7 w-7" />,
       nome: "WhatsApp",
       descricao: "",
       cor: "bg-green-600 text-white",
+      href: "/ferramentas-chat/canais",
     },
   }[channel];
 
@@ -548,13 +556,18 @@ function EmBreve({ channel }: { channel: Channel }) {
           {cfg.icon}
         </div>
         <div>
-          <div className="text-xl font-bold">{cfg.nome} · em breve</div>
+          <div className="text-xl font-bold">{cfg.nome}</div>
           <div className="text-sm text-muted-foreground mt-1">{cfg.descricao}</div>
         </div>
         <div className="text-xs text-muted-foreground">
-          A integração com {cfg.nome} está em desenvolvimento. Vai aparecer aqui junto
-          com as conversas do WhatsApp.
+          Recebimento em tempo real via webhook ainda em desenvolvimento. Por enquanto
+          conecte as contas pra aparecer aqui depois.
         </div>
+        <Link href={cfg.href}>
+          <Button size="sm" variant="outline">
+            Gerenciar contas {cfg.nome}
+          </Button>
+        </Link>
       </div>
     </div>
   );

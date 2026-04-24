@@ -471,6 +471,102 @@ export async function atualizarWhatsappBusinessProfile(
   );
 }
 
+export type PhoneNumberStatus = {
+  id: string;
+  display_phone_number?: string;
+  verified_name?: string;
+  quality_rating?: string;
+  code_verification_status?: string;
+  messaging_limit_tier?: string; // TIER_50, TIER_250, TIER_1K, TIER_10K, TIER_100K, TIER_UNLIMITED
+  status?: string; // CONNECTED, OFFLINE, FLAGGED, etc
+  name_status?: string; // APPROVED, PENDING, etc
+  platform_type?: string;
+  throughput?: { level?: string };
+  is_official_business_account?: boolean;
+};
+
+/**
+ * Busca o status detalhado de um phone_number_id:
+ * - Tier de mensagens (TIER_50 → TIER_UNLIMITED)
+ * - Quality rating
+ * - Status de verificação do nome
+ * - Throughput level
+ */
+export async function obterStatusPhoneNumber(
+  accessToken: string,
+  phoneNumberId: string,
+) {
+  return graphGet<PhoneNumberStatus>(phoneNumberId, accessToken, {
+    fields:
+      "id,display_phone_number,verified_name,quality_rating,code_verification_status,messaging_limit_tier,status,name_status,platform_type,throughput,is_official_business_account",
+  }).catch(() => null);
+}
+
+export type AnalyticsResult = {
+  phone_numbers?: string[];
+  country_codes?: string[];
+  granularity?: string;
+  data_points?: Array<{
+    start: number;
+    end: number;
+    sent: number;
+    delivered: number;
+  }>;
+};
+
+/**
+ * Busca analytics (mensagens enviadas/entregues) de uma WABA num período.
+ * Retorna data_points agregados por dia.
+ * start/end são timestamps Unix em segundos.
+ */
+export async function obterAnalyticsWaba(
+  accessToken: string,
+  wabaId: string,
+  start: number,
+  end: number,
+  phoneNumbers: string[] = [],
+) {
+  const analyticsField = `analytics.start(${start}).end(${end}).granularity(DAY)${phoneNumbers.length > 0 ? `.phone_numbers(${phoneNumbers.join(",")})` : ""}`;
+  const res = await graphGet<{ analytics: AnalyticsResult; id: string }>(
+    wabaId,
+    accessToken,
+    { fields: analyticsField },
+  ).catch(() => null);
+  return res?.analytics ?? null;
+}
+
+export type ConversationAnalyticsResult = {
+  data?: Array<{
+    data_points?: Array<{
+      start: number;
+      end: number;
+      conversation: number;
+      cost: number;
+      conversation_type?: string;
+      conversation_category?: string;
+    }>;
+  }>;
+};
+
+/**
+ * Analytics de conversas (custo + quantidade por categoria: MARKETING, UTILITY,
+ * AUTHENTICATION, SERVICE). Usa o endpoint conversation_analytics da WABA.
+ */
+export async function obterConversationAnalytics(
+  accessToken: string,
+  wabaId: string,
+  start: number,
+  end: number,
+) {
+  const field = `conversation_analytics.start(${start}).end(${end}).granularity(DAILY).phone_numbers([]).conversation_types([]).conversation_directions([]).dimensions([CONVERSATION_CATEGORY,CONVERSATION_TYPE])`;
+  const res = await graphGet<{ conversation_analytics: ConversationAnalyticsResult }>(
+    wabaId,
+    accessToken,
+    { fields: field },
+  ).catch(() => null);
+  return res?.conversation_analytics ?? null;
+}
+
 /**
  * Busca detalhes da WABA (status, timezone, etc) e do BM dono.
  */

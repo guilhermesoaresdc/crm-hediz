@@ -16,6 +16,9 @@ import { canalRouter } from "./canal";
 import { templateRouter } from "./template";
 import { mensagemRouter } from "./mensagem";
 import { conversaRouter } from "./conversa";
+import { instagramRouter } from "./instagram";
+import { facebookRouter } from "./facebook";
+import { baileysRouter } from "./baileys";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -35,6 +38,9 @@ export const appRouter = createTRPCRouter({
   template: templateRouter,
   mensagem: mensagemRouter,
   conversa: conversaRouter,
+  instagram: instagramRouter,
+  facebook: facebookRouter,
+  baileys: baileysRouter,
 });
 
 export type AppRouter = typeof appRouter;
