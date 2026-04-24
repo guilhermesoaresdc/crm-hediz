@@ -16,28 +16,67 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
+  const svc = createSupabaseServiceClient();
 
+  // LOGA PRIMEIRO (antes de qualquer validacao) — assim conseguimos ver
+  // TUDO que a Meta manda, mesmo que depois a gente rejeite por signature.
   const signature = req.headers.get("x-hub-signature-256");
   const appSecret = process.env.META_APP_SECRET;
+  let signatureValid: boolean | null = null;
   if (appSecret && signature) {
     const expected =
-      "sha256=" + crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
-    if (expected !== signature) return new Response("Invalid signature", { status: 401 });
+      "sha256=" +
+      crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+    signatureValid = expected === signature;
   }
 
-  const payload = JSON.parse(rawBody);
-  const svc = createSupabaseServiceClient();
-  await svc.from("webhook_logs").insert({ source: "whatsapp", payload_raw: payload });
+  const headersForLog: Record<string, string | null> = {
+    "x-hub-signature-256": signature,
+    "user-agent": req.headers.get("user-agent"),
+    "content-type": req.headers.get("content-type"),
+    "x-forwarded-for": req.headers.get("x-forwarded-for"),
+  };
+
+  let payload: any = null;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    // Se nao for JSON valido, loga como raw string
+    payload = { _raw: rawBody.slice(0, 2000) };
+  }
+
+  const { data: log } = await svc
+    .from("webhook_logs")
+    .insert({
+      source: "whatsapp",
+      payload_raw: payload,
+      signature_valid: signatureValid,
+      headers: headersForLog,
+    })
+    .select("id")
+    .single();
+
+  // AGORA valida assinatura (se fornecida e falha, retorna 401 mas o log ja foi persistido)
+  if (signatureValid === false) {
+    await svc
+      .from("webhook_logs")
+      .update({
+        erro:
+          "Signature invalida. Verifique META_APP_SECRET no Vercel — deve bater com o App Secret do seu app na Meta.",
+        status_code: 401,
+      })
+      .eq("id", log?.id ?? "");
+    return new Response("Invalid signature", { status: 401 });
+  }
 
   try {
-    for (const entry of payload.entry ?? []) {
+    for (const entry of payload?.entry ?? []) {
       for (const change of entry.changes ?? []) {
         if (change.field !== "messages") continue;
         const value = change.value;
         const phoneNumberId = value.metadata?.phone_number_id;
         if (!phoneNumberId) continue;
 
-        // Busca canal multi-canal; fallback pra config legada se ainda não migrou
         const { data: canal } = await svc
           .from("canais_whatsapp")
           .select("id, imobiliaria_id")
@@ -55,13 +94,21 @@ export async function POST(req: Request) {
             .maybeSingle();
           imobiliariaId = config?.imobiliaria_id;
         }
-        if (!imobiliariaId) continue;
+        if (!imobiliariaId) {
+          await svc
+            .from("webhook_logs")
+            .update({
+              erro: `Nenhum canal encontrado pro phone_number_id=${phoneNumberId}. Esse numero nao ta cadastrado no CRM (ou talvez seja um teste da Meta com ID fake).`,
+              status_code: 200,
+            })
+            .eq("id", log?.id ?? "");
+          continue;
+        }
 
         // Processa mensagens recebidas
         for (const msg of value.messages ?? []) {
           const from = msg.from as string;
 
-          // Busca lead pelo número (normalizado — só dígitos)
           const digits = from.replace(/\D/g, "");
           const { data: leadMatch } = await svc
             .from("leads")
@@ -74,7 +121,6 @@ export async function POST(req: Request) {
           let leadId = leadMatch?.id;
           let corretorId = leadMatch?.corretor_id;
 
-          // Se nao existe lead, cria um novo como "novo_wa" (origem: whatsapp_direto)
           if (!leadId) {
             const nome =
               value.contacts?.find((c: any) => c.wa_id === from)?.profile?.name ??
@@ -95,7 +141,6 @@ export async function POST(req: Request) {
           }
           if (!leadId) continue;
 
-          // Busca/cria conversa (preferir a que tá aberta)
           const { data: conversaExistente } = await svc
             .from("conversas_whatsapp")
             .select("id")
@@ -131,7 +176,6 @@ export async function POST(req: Request) {
 
           if (!conversaId) continue;
 
-          // Extrai conteudo conforme o tipo
           let conteudo: string | null = null;
           const tipo = (msg.type ?? "text") as string;
           if (tipo === "text") conteudo = msg.text?.body ?? null;
@@ -160,7 +204,6 @@ export async function POST(req: Request) {
             status_entrega: "delivered",
           });
 
-          // Marca primeira_resposta + saí do bolsão se aplicavel
           if (leadMatch && !leadMatch.primeira_resposta_em) {
             await svc
               .from("leads")
@@ -178,7 +221,6 @@ export async function POST(req: Request) {
           }
         }
 
-        // Status de entrega (sent, delivered, read, failed)
         for (const status of value.statuses ?? []) {
           await svc
             .from("mensagens_whatsapp")
@@ -188,9 +230,21 @@ export async function POST(req: Request) {
       }
     }
 
+    await svc
+      .from("webhook_logs")
+      .update({ processado: true, status_code: 200 })
+      .eq("id", log?.id ?? "");
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[WhatsApp Webhook]", err);
+    await svc
+      .from("webhook_logs")
+      .update({
+        erro: err instanceof Error ? err.message : String(err),
+        status_code: 500,
+      })
+      .eq("id", log?.id ?? "");
     return NextResponse.json({ ok: false });
   }
 }

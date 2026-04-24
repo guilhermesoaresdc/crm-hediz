@@ -18,7 +18,9 @@ export const webhookDebugRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       let q = ctx.supabase
         .from("webhook_logs")
-        .select("id, source, payload_raw, processado, erro, created_at")
+        .select(
+          "id, source, payload_raw, signature_valid, headers, status_code, processado, erro, created_at",
+        )
         .order("created_at", { ascending: false })
         .limit(input?.limit ?? 50);
 
