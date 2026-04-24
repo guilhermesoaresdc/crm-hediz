@@ -147,6 +147,41 @@ export const leadRouter = createTRPCRouter({
       return data;
     }),
 
+  /**
+   * Verifica se já existe lead com o mesmo whatsapp/email/cpf.
+   * Retorna lista de matches pra UI decidir (avisar/mesclar/ignorar).
+   */
+  verificarDuplicados: protectedProcedure
+    .input(
+      z.object({
+        whatsapp: z.string().optional(),
+        email: z.string().optional(),
+        cpf: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const filtros: string[] = [];
+      if (input.whatsapp) {
+        const w = sanitizePhone(input.whatsapp);
+        const d = w.replace(/\D/g, "");
+        filtros.push(`whatsapp.eq.${w}`);
+        filtros.push(`whatsapp.eq.${d}`);
+        filtros.push(`whatsapp.eq.+${d}`);
+      }
+      if (input.email) filtros.push(`email.eq.${input.email}`);
+      if (input.cpf) filtros.push(`cpf.eq.${input.cpf.replace(/\D/g, "")}`);
+      if (filtros.length === 0) return [];
+
+      const { data } = await ctx.supabase
+        .from("leads")
+        .select("id, nome, whatsapp, email, cpf, status, origem, created_at, corretor:usuarios!leads_corretor_id_fkey(id, nome)")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .or(filtros.join(","))
+        .order("created_at", { ascending: false })
+        .limit(5);
+      return data ?? [];
+    }),
+
   criar: protectedProcedure
     .input(
       z.object({
@@ -157,9 +192,55 @@ export const leadRouter = createTRPCRouter({
         observacoes: z.string().optional(),
         tags: z.array(z.string()).optional(),
         origem: z.string().default("manual"),
+        // Se true, cria mesmo existindo duplicado (confirma na UI)
+        forcar_duplicado: z.boolean().default(false),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Dedup: se ja existe lead com o mesmo whatsapp, reusa ele
+      // em vez de criar duplicado. Atualiza observacoes/email se estiverem vazios.
+      const w = sanitizePhone(input.whatsapp);
+      const d = w.replace(/\D/g, "");
+      const filtros: string[] = [
+        `whatsapp.eq.${w}`,
+        `whatsapp.eq.${d}`,
+        `whatsapp.eq.+${d}`,
+      ];
+
+      const { data: existentes } = await ctx.supabase
+        .from("leads")
+        .select("id, nome, whatsapp, email, cpf, observacoes, status, created_at")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .or(filtros.join(","))
+        .limit(3);
+
+      if (existentes && existentes.length > 0 && !input.forcar_duplicado) {
+        const existente = existentes[0];
+        // Enriquece o lead existente com campos novos que estavam vazios
+        const updates: Record<string, unknown> = {};
+        if (!existente.email && input.email) updates.email = input.email;
+        if (!existente.cpf && input.cpf) updates.cpf = input.cpf;
+        if (!existente.observacoes && input.observacoes)
+          updates.observacoes = input.observacoes;
+        if (Object.keys(updates).length > 0) {
+          await ctx.supabase.from("leads").update(updates).eq("id", existente.id);
+        }
+        await ctx.supabase.from("lead_eventos").insert({
+          lead_id: existente.id,
+          imobiliaria_id: ctx.profile.imobiliaria_id,
+          tipo: "duplicado_evitado",
+          usuario_id: ctx.user.id,
+          payload: { origem: input.origem, nome_tentativa: input.nome },
+        });
+        return {
+          id: existente.id,
+          nome: existente.nome,
+          ja_existia: true as const,
+          aviso: `Lead já existia (criado em ${new Date(existente.created_at).toLocaleDateString("pt-BR")}). Abrimos o mesmo em vez de duplicar.`,
+          atribuido_para: null as string | null,
+        };
+      }
+
       const { data: lead, error } = await ctx.supabase
         .from("leads")
         .insert({
@@ -207,7 +288,13 @@ export const leadRouter = createTRPCRouter({
         });
       }
 
-      return { lead, atribuido_para: proximoId };
+      return {
+        id: lead.id,
+        nome: lead.nome,
+        ja_existia: false as const,
+        aviso: null as string | null,
+        atribuido_para: (proximoId ?? null) as string | null,
+      };
     }),
 
   atualizar: protectedProcedure
