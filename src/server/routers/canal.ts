@@ -161,6 +161,122 @@ export const canalRouter = createTRPCRouter({
       return data;
     }),
 
+  /**
+   * Cria um canal colando credenciais diretamente (phone_number_id, WABA id,
+   * access_token). Útil pra:
+   * - Número de teste do painel Meta (token temporário de 24h)
+   * - System User Token pré-existente
+   * - Fallback quando OAuth nao ta configurado
+   *
+   * Nao exige meta_access_token salvo — o token recebido aqui é usado direto.
+   * Tenta inscrever no webhook, mas ignora falha (comum com token de teste).
+   */
+  criarManual: adminProcedure
+    .input(
+      z.object({
+        nome: z.string().min(2),
+        whatsapp_business_account_id: z.string().regex(/^\d+$/, "WABA ID deve ter só dígitos"),
+        whatsapp_business_account_nome: z.string().optional(),
+        whatsapp_phone_number_id: z.string().regex(/^\d+$/, "Phone Number ID deve ter só dígitos"),
+        whatsapp_phone_display: z.string().optional(),
+        access_token: z.string().min(20, "Access token parece curto demais"),
+        equipe_id: z.string().uuid().nullable().optional(),
+        corretor_id: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: existente } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("id")
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .eq("whatsapp_phone_number_id", input.whatsapp_phone_number_id)
+        .maybeSingle();
+      if (existente) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Esse número já está conectado como canal",
+        });
+      }
+
+      const { data, error } = await ctx.supabase
+        .from("canais_whatsapp")
+        .insert({
+          imobiliaria_id: ctx.profile.imobiliaria_id,
+          nome: input.nome,
+          whatsapp_business_account_id: input.whatsapp_business_account_id,
+          whatsapp_business_account_nome: input.whatsapp_business_account_nome,
+          whatsapp_phone_number_id: input.whatsapp_phone_number_id,
+          whatsapp_phone_display: input.whatsapp_phone_display,
+          equipe_id: input.equipe_id ?? null,
+          corretor_id: input.corretor_id ?? null,
+          access_token: input.access_token,
+        })
+        .select()
+        .single();
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+
+      try {
+        await inscreverAppNaWaba(input.access_token, input.whatsapp_business_account_id);
+      } catch (err) {
+        console.warn(
+          `[canal.criarManual] inscreverAppNaWaba(${input.whatsapp_business_account_id}) falhou:`,
+          err,
+        );
+      }
+
+      return data;
+    }),
+
+  /**
+   * Envia um template ou texto direto pelo canal (pra smoke test do fluxo).
+   * Usado na pagina /canais/manual pra validar que a credencial colada
+   * funciona sem precisar criar lead/conversa.
+   */
+  enviarTeste: adminProcedure
+    .input(
+      z.object({
+        canal_id: z.string().uuid(),
+        para: z.string().regex(/^\d+$/, "Numero do destinatario deve ter só dígitos (ex: 5511972425144)"),
+        template_name: z.string().default("hello_world"),
+        language_code: z.string().default("en_US"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("access_token, whatsapp_phone_number_id")
+        .eq("id", input.canal_id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal) throw new TRPCError({ code: "NOT_FOUND", message: "Canal não encontrado" });
+
+      const url = `https://graph.facebook.com/v19.0/${canal.whatsapp_phone_number_id}/messages`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${canal.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: input.para,
+          type: "template",
+          template: {
+            name: input.template_name,
+            language: { code: input.language_code },
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Meta retornou ${res.status}: ${JSON.stringify(json)}`,
+        });
+      }
+      return { ok: true, resposta: json };
+    }),
+
   atualizar: adminProcedure
     .input(
       z.object({

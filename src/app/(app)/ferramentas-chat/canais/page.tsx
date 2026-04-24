@@ -14,6 +14,7 @@ import {
   Instagram,
   Smartphone,
   ChevronRight,
+  KeyRound,
 } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -94,14 +95,28 @@ export default function CanaisPage() {
                 Cadastrar número novo (avançado)
               </Button>
             </Link>
+            <Link href="/ferramentas-chat/canais/manual">
+              <Button variant="outline">
+                <KeyRound className="h-4 w-4" />
+                Credenciais manuais / teste
+              </Button>
+            </Link>
           </div>
         ) : (
-          <Link href="/integracoes">
-            <Button variant="outline">
-              <Facebook className="h-4 w-4" />
-              Conectar Meta primeiro
-            </Button>
-          </Link>
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/integracoes">
+              <Button variant="outline">
+                <Facebook className="h-4 w-4" />
+                Conectar Meta primeiro
+              </Button>
+            </Link>
+            <Link href="/ferramentas-chat/canais/manual">
+              <Button variant="outline">
+                <KeyRound className="h-4 w-4" />
+                Credenciais manuais / teste
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 
@@ -143,34 +158,42 @@ export default function CanaisPage() {
                 receber mensagens.
               </div>
             </div>
-            {oauthPronto && (
-              <div className="flex gap-2 justify-center flex-wrap">
-                {embeddedPronto && features ? (
-                  <EmbeddedSignupButton
-                    appId={features.meta_app_id!}
-                    configId={features.embedded_config_id!}
-                    onSuccess={handleSignupSuccess}
-                    onError={(msg) => setSignupMsg({ ok: false, text: msg })}
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Conectar WhatsApp
-                  </EmbeddedSignupButton>
-                ) : (
-                  <Link href="/ferramentas-chat/canais/novo">
-                    <Button>
-                      <Plus className="h-4 w-4" />
-                      Conectar número existente
+            <div className="flex gap-2 justify-center flex-wrap">
+              {oauthPronto && (
+                <>
+                  {embeddedPronto && features ? (
+                    <EmbeddedSignupButton
+                      appId={features.meta_app_id!}
+                      configId={features.embedded_config_id!}
+                      onSuccess={handleSignupSuccess}
+                      onError={(msg) => setSignupMsg({ ok: false, text: msg })}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Conectar WhatsApp
+                    </EmbeddedSignupButton>
+                  ) : (
+                    <Link href="/ferramentas-chat/canais/novo">
+                      <Button>
+                        <Plus className="h-4 w-4" />
+                        Conectar número existente
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href="/ferramentas-chat/canais/novo-numero">
+                    <Button variant="outline">
+                      <PhoneCall className="h-4 w-4" />
+                      Cadastrar número novo
                     </Button>
                   </Link>
-                )}
-                <Link href="/ferramentas-chat/canais/novo-numero">
-                  <Button variant="outline">
-                    <PhoneCall className="h-4 w-4" />
-                    Cadastrar número novo
-                  </Button>
-                </Link>
-              </div>
-            )}
+                </>
+              )}
+              <Link href="/ferramentas-chat/canais/manual">
+                <Button variant="outline">
+                  <KeyRound className="h-4 w-4" />
+                  Credenciais manuais / teste
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (
