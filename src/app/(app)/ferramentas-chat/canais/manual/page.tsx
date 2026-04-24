@@ -30,6 +30,22 @@ export default function CanalManualPage() {
     language_code: "en_US",
   });
   const [resultadoTeste, setResultadoTeste] = useState<string | null>(null);
+  const [verificado, setVerificado] = useState<{
+    display_phone_number?: string;
+    verified_name?: string;
+    quality_rating?: string;
+  } | null>(null);
+
+  const verificar = api.canal.verificarCredenciaisManual.useMutation({
+    onSuccess: (data) => {
+      setVerificado(data);
+      setForm((f) => ({
+        ...f,
+        whatsapp_phone_display: f.whatsapp_phone_display || data.display_phone_number || "",
+      }));
+    },
+    onError: () => setVerificado(null),
+  });
 
   const criarManual = api.canal.criarManual.useMutation({
     onSuccess: (data) => {
@@ -46,6 +62,14 @@ export default function CanalManualPage() {
       setResultadoTeste(`Erro: ${err.message}`);
     },
   });
+
+  function handleVerificar() {
+    setVerificado(null);
+    verificar.mutate({
+      access_token: form.access_token.trim(),
+      whatsapp_phone_number_id: form.whatsapp_phone_number_id.trim(),
+    });
+  }
 
   function handleCriar() {
     criarManual.mutate({
@@ -198,11 +222,38 @@ export default function CanalManualPage() {
               <Label>Access Token</Label>
               <textarea
                 value={form.access_token}
-                onChange={(e) => setForm((f) => ({ ...f, access_token: e.target.value }))}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, access_token: e.target.value }));
+                  setVerificado(null);
+                }}
                 placeholder="EAASYVw...cole o token inteiro aqui"
                 className="w-full min-h-[90px] rounded-md border bg-background px-3 py-2 text-sm font-mono break-all"
               />
+              <p className="text-[11px] text-muted-foreground">
+                {form.access_token.trim().length > 0 && (
+                  <>Comprimento: <strong>{form.access_token.trim().length}</strong> chars</>
+                )}
+              </p>
             </div>
+
+            {verificar.error && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+                {verificar.error.message}
+              </div>
+            )}
+
+            {verificado && (
+              <div className="rounded-md bg-success/10 border border-success/20 p-3 text-sm text-success space-y-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Credenciais validas
+                </div>
+                <div className="text-xs text-success/80 font-mono">
+                  {verificado.display_phone_number} · {verificado.verified_name ?? "—"}
+                  {verificado.quality_rating && ` · Qualidade ${verificado.quality_rating}`}
+                </div>
+              </div>
+            )}
 
             {criarManual.error && (
               <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
@@ -210,20 +261,40 @@ export default function CanalManualPage() {
               </div>
             )}
 
-            <Button
-              className="w-full"
-              onClick={handleCriar}
-              disabled={!podeCriar || criarManual.isPending}
-            >
-              {criarManual.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Criando canal...
-                </>
-              ) : (
-                "Conectar canal"
-              )}
-            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                onClick={handleVerificar}
+                disabled={
+                  verificar.isPending ||
+                  !/^\d+$/.test(form.whatsapp_phone_number_id.trim()) ||
+                  form.access_token.trim().length < 20
+                }
+              >
+                {verificar.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  "Verificar credenciais"
+                )}
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleCriar}
+                disabled={!podeCriar || criarManual.isPending}
+              >
+                {criarManual.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Criando canal...
+                  </>
+                ) : (
+                  "Conectar canal"
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (

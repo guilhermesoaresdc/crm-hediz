@@ -171,6 +171,53 @@ export const canalRouter = createTRPCRouter({
    * Nao exige meta_access_token salvo — o token recebido aqui é usado direto.
    * Tenta inscrever no webhook, mas ignora falha (comum com token de teste).
    */
+  /**
+   * Verifica se (access_token + phone_number_id) batem ANTES de criar o canal.
+   * Faz um GET /v19.0/{phone_number_id}?fields=... — se retornar 200, a
+   * credencial ta viva; se 4xx, extrai a mensagem de erro da Meta e devolve
+   * pro usuario ajustar.
+   */
+  verificarCredenciaisManual: adminProcedure
+    .input(
+      z.object({
+        access_token: z.string().min(20),
+        whatsapp_phone_number_id: z.string().regex(/^\d+$/),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const url = new URL(
+        `https://graph.facebook.com/v22.0/${input.whatsapp_phone_number_id}`,
+      );
+      url.searchParams.set(
+        "fields",
+        "id,display_phone_number,verified_name,quality_rating,code_verification_status,platform_type",
+      );
+      url.searchParams.set("access_token", input.access_token);
+      const res = await fetch(url.toString());
+      const json = await res.json();
+      if (!res.ok) {
+        const err = json?.error;
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Meta ${res.status} — ${err?.message ?? "erro desconhecido"}. ${
+            err?.code === 100
+              ? "Dicas: (1) confira se o token nao foi rotacionado no painel, (2) conferir se copiou o token inteiro, (3) se for token de teste, conferir se ainda ta dentro das 24h."
+              : err?.code === 190
+                ? "Token expirado ou invalido. Gera um novo no painel Meta."
+                : ""
+          }`,
+        });
+      }
+      return json as {
+        id: string;
+        display_phone_number?: string;
+        verified_name?: string;
+        quality_rating?: string;
+        code_verification_status?: string;
+        platform_type?: string;
+      };
+    }),
+
   criarManual: adminProcedure
     .input(
       z.object({
@@ -250,7 +297,7 @@ export const canalRouter = createTRPCRouter({
         .single();
       if (!canal) throw new TRPCError({ code: "NOT_FOUND", message: "Canal não encontrado" });
 
-      const url = `https://graph.facebook.com/v19.0/${canal.whatsapp_phone_number_id}/messages`;
+      const url = `https://graph.facebook.com/v22.0/${canal.whatsapp_phone_number_id}/messages`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -269,12 +316,62 @@ export const canalRouter = createTRPCRouter({
       });
       const json = await res.json();
       if (!res.ok) {
+        const err = json?.error;
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Meta retornou ${res.status}: ${JSON.stringify(json)}`,
+          message: `Meta ${res.status}: ${err?.message ?? JSON.stringify(json)}${
+            err?.code === 100
+              ? " — Token provavelmente rotacionado/expirado. Use 'Atualizar token' no canal."
+              : err?.code === 131030
+                ? " — Destinatario nao ta na lista de 'Recipients' do painel Meta (so pra numero de teste)."
+                : ""
+          }`,
         });
       }
       return { ok: true, resposta: json };
+    }),
+
+  /**
+   * Atualiza apenas o access_token de um canal existente. Util quando o token
+   * do painel Meta (24h) expira ou quando rotaciona o System User Token.
+   */
+  atualizarToken: adminProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        access_token: z.string().min(20),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { data: canal } = await ctx.supabase
+        .from("canais_whatsapp")
+        .select("whatsapp_phone_number_id")
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id)
+        .single();
+      if (!canal) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const url = new URL(
+        `https://graph.facebook.com/v22.0/${canal.whatsapp_phone_number_id}`,
+      );
+      url.searchParams.set("fields", "id,display_phone_number");
+      url.searchParams.set("access_token", input.access_token);
+      const verifyRes = await fetch(url.toString());
+      if (!verifyRes.ok) {
+        const j = await verifyRes.json().catch(() => ({}));
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Token invalido: ${j?.error?.message ?? verifyRes.status}`,
+        });
+      }
+
+      const { error } = await ctx.supabase
+        .from("canais_whatsapp")
+        .update({ access_token: input.access_token })
+        .eq("id", input.id)
+        .eq("imobiliaria_id", ctx.profile.imobiliaria_id);
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      return { ok: true };
     }),
 
   atualizar: adminProcedure

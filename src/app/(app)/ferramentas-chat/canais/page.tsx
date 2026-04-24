@@ -37,6 +37,14 @@ export default function CanaisPage() {
     onSuccess: () => utils.canal.listar.invalidate(),
   });
 
+  const atualizarToken = api.canal.atualizarToken.useMutation({
+    onSuccess: () => {
+      utils.canal.listar.invalidate();
+      alert("Token atualizado com sucesso!");
+    },
+    onError: (err) => alert(`Erro ao atualizar token: ${err.message}`),
+  });
+
   const oauthPronto =
     (features?.metaOauthEnabled ?? false) && !!config?.meta_access_token_present;
   const embeddedPronto =
@@ -266,6 +274,24 @@ export default function CanaisPage() {
                             <BarChart3 className="h-3.5 w-3.5" />
                           </Button>
                         </Link>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title="Atualizar access token"
+                          onClick={() => {
+                            const novo = prompt(
+                              `Cole o novo access token pro canal "${c.nome}":\n\n(Util pra quando o token de teste do painel Meta expira em 24h)`,
+                            );
+                            if (novo && novo.trim().length > 20) {
+                              atualizarToken.mutate({
+                                id: c.id,
+                                access_token: novo.trim(),
+                              });
+                            }
+                          }}
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
