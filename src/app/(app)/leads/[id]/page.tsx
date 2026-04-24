@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { Send } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,16 @@ export default function LeadDetailPage() {
     onSuccess: () => utils.lead.detalhes.invalidate({ id }),
   });
 
-  const registrarPrimeiraMsg = api.lead.registrarPrimeiraMensagem.useMutation({
-    onSuccess: () => utils.lead.detalhes.invalidate({ id }),
+  const { data: mensagens } = api.mensagem.listarPorLead.useQuery(
+    { lead_id: id },
+    { enabled: !!id },
+  );
+
+  const enviarMsg = api.mensagem.enviar.useMutation({
+    onSuccess: () => {
+      utils.lead.detalhes.invalidate({ id });
+      utils.mensagem.listarPorLead.invalidate({ lead_id: id });
+    },
   });
 
   const [novaMsg, setNovaMsg] = useState("");
@@ -101,33 +110,77 @@ export default function LeadDetailPage() {
             </CardContent>
           </Card>
 
-          {!l.primeira_mensagem_em && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Primeira mensagem</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Ao enviar, o lead sai do timer de 5min e não vai pro bolsão.
+          <Card>
+            <CardHeader>
+              <CardTitle>WhatsApp</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {mensagens && mensagens.length > 0 && (
+                <div className="max-h-80 overflow-y-auto space-y-2 rounded-md border bg-muted/30 p-3">
+                  {mensagens.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`rounded-md px-3 py-2 text-sm max-w-[85%] ${
+                        m.direcao === "enviada"
+                          ? "ml-auto bg-primary text-primary-foreground"
+                          : "bg-background border"
+                      }`}
+                    >
+                      <div className="whitespace-pre-wrap break-words">
+                        {m.conteudo || (m.template_nome ? `Template: ${m.template_nome}` : "—")}
+                      </div>
+                      <div
+                        className={`mt-1 text-[11px] ${
+                          m.direcao === "enviada"
+                            ? "text-primary-foreground/70"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {formatDate(m.created_at)}
+                        {m.status_entrega && ` · ${m.status_entrega}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!l.primeira_mensagem_em && (
+                <p className="text-xs text-muted-foreground">
+                  Primeira mensagem: o lead sai do timer de 5min e não vai pro bolsão.
                 </p>
-                <textarea
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  placeholder={`Olá ${l.nome}, tudo bem?`}
-                  value={novaMsg}
-                  onChange={(e) => setNovaMsg(e.target.value)}
-                />
+              )}
+
+              <textarea
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                placeholder={`Olá ${l.nome}, tudo bem?`}
+                value={novaMsg}
+                onChange={(e) => setNovaMsg(e.target.value)}
+                disabled={enviarMsg.isPending}
+              />
+
+              {enviarMsg.error && (
+                <p className="text-sm text-destructive">{enviarMsg.error.message}</p>
+              )}
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground truncate">
+                  Para: {l.whatsapp}
+                </span>
                 <Button
-                  disabled={!novaMsg || registrarPrimeiraMsg.isPending}
+                  disabled={!novaMsg.trim() || enviarMsg.isPending}
                   onClick={() => {
-                    registrarPrimeiraMsg.mutate({ id: l.id, conteudo: novaMsg });
-                    setNovaMsg("");
+                    enviarMsg.mutate(
+                      { lead_id: l.id, tipo: "texto", texto: novaMsg },
+                      { onSuccess: () => setNovaMsg("") },
+                    );
                   }}
                 >
-                  Registrar envio
+                  <Send className="h-4 w-4 mr-2" />
+                  {enviarMsg.isPending ? "Enviando..." : "Enviar"}
                 </Button>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
