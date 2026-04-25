@@ -85,12 +85,48 @@ export default function IntegracoesPage() {
         }}
       />
 
-      <WhatsappIntegrationCard
-        config={config}
-        oauthDisponivel={features?.metaOauthEnabled ?? false}
-        onChange={() => utils.config.obter.invalidate()}
-      />
+      <WhatsappLinkCard />
     </div>
+  );
+}
+
+function WhatsappLinkCard() {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div className="flex gap-3">
+          <div className="h-10 w-10 rounded-lg bg-green-500/10 text-green-600 inline-flex items-center justify-center">
+            <MessageCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <CardTitle className="text-base">WhatsApp Cloud API</CardTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              A conexão WhatsApp foi unificada em <strong>Ferramentas de Chat → Canais</strong>
+            </p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-1.5">
+          <div>
+            Lá você pode conectar <strong>quantos números precisar</strong> (multi-canal),
+            ver qualidade do número, status da WABA, sincronizar templates, e
+            atualizar tokens expirados.
+          </div>
+          <div>
+            Se já tem Meta Ads conectado acima, o token é reaproveitado automaticamente.
+          </div>
+        </div>
+        <div className="mt-3">
+          <Link href="/ferramentas-chat/canais">
+            <Button className="w-full sm:w-auto">
+              <MessageCircle className="h-4 w-4" />
+              Ir pra Canais WhatsApp
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -447,261 +483,7 @@ function MetaIntegrationCard({
   );
 }
 
-function WhatsappIntegrationCard({
-  config,
-  oauthDisponivel,
-  onChange,
-}: {
-  config: any;
-  oauthDisponivel: boolean;
-  onChange: () => void;
-}) {
-  const conectado = !!config?.whatsapp_conectado_em;
-  const temTokenMeta = !!config?.meta_access_token;
-  const [editando, setEditando] = useState(false);
-  const [form, setForm] = useState({
-    whatsapp_phone_number_id: "",
-    whatsapp_business_account_id: "",
-    whatsapp_access_token: "",
-  });
 
-  const conectar = api.config.conectarWhatsapp.useMutation({
-    onSuccess: () => {
-      setEditando(false);
-      setForm({
-        whatsapp_phone_number_id: "",
-        whatsapp_business_account_id: "",
-        whatsapp_access_token: "",
-      });
-      onChange();
-    },
-  });
-  const desconectar = api.config.desconectarWhatsapp.useMutation({ onSuccess: onChange });
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="flex gap-3">
-          <div className="h-10 w-10 rounded-lg bg-green-500/10 text-green-600 inline-flex items-center justify-center">
-            <MessageCircle className="h-5 w-5" />
-          </div>
-          <div>
-            <CardTitle className="text-base">WhatsApp Cloud API</CardTitle>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Envia primeira mensagem via template oficial · recebe respostas dos leads
-            </p>
-          </div>
-        </div>
-        <div>
-          {conectado ? (
-            <Badge variant="success" className="gap-1">
-              <CheckCircle2 className="h-3 w-3" /> Conectado
-            </Badge>
-          ) : (
-            <Badge variant="outline">Não conectado</Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {conectado && !editando && (
-          <>
-            <div className="space-y-3">
-              <AssetRow
-                label="Número"
-                nome={config?.whatsapp_phone_display}
-                id={config?.whatsapp_phone_number_id}
-              />
-              <AssetRow
-                label="WhatsApp Business Account"
-                nome={config?.whatsapp_business_account_nome}
-                id={config?.whatsapp_business_account_id}
-              />
-              <div className="text-xs text-muted-foreground pt-1">
-                Conectado em {formatDate(config?.whatsapp_conectado_em)}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-2">
-              {oauthDisponivel && temTokenMeta && (
-                <a href="/integracoes/selecionar-whatsapp">
-                  <Button size="sm" variant="outline" className="gap-2">
-                    <Facebook className="h-3.5 w-3.5" />
-                    Trocar WABA / número
-                  </Button>
-                </a>
-              )}
-              <Button size="sm" variant="ghost" onClick={() => setEditando(true)}>
-                Editar manualmente
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-destructive hover:bg-destructive/10"
-                onClick={() => {
-                  if (confirm("Desconectar WhatsApp?")) desconectar.mutate();
-                }}
-              >
-                <Unplug className="h-3.5 w-3.5" />
-                Desconectar
-              </Button>
-            </div>
-          </>
-        )}
-
-        {!conectado && !editando && (
-          <div className="space-y-3">
-            {oauthDisponivel ? (
-              temTokenMeta ? (
-                <>
-                  <a href="/integracoes/selecionar-whatsapp">
-                    <Button className="w-full h-11 bg-green-600 text-white hover:bg-green-600/90">
-                      <MessageCircle className="h-5 w-5" />
-                      Conectar número WhatsApp
-                    </Button>
-                  </a>
-                  <div className="text-xs text-center text-muted-foreground">
-                    Você já está autenticado com Facebook. Só precisa escolher qual WhatsApp
-                    Business Account e número usar.
-                  </div>
-                </>
-              ) : (
-                <>
-                  <a href="/api/auth/meta/start?intent=whatsapp">
-                    <Button className="w-full h-11 bg-[#1877F2] text-white hover:bg-[#1877F2]/90">
-                      <Facebook className="h-5 w-5" />
-                      Continuar com Facebook
-                    </Button>
-                  </a>
-                  <div className="text-xs text-center text-muted-foreground">
-                    Autentique com Facebook primeiro. Depois você escolhe WABA e número.
-                  </div>
-                </>
-              )
-            ) : (
-              <div className="rounded-md bg-muted/50 p-3 text-sm">
-                <div className="font-medium mb-1">Login com Facebook indisponível</div>
-                <div className="text-muted-foreground text-xs">
-                  Configure <code className="bg-muted px-1 rounded">META_APP_ID</code> e{" "}
-                  <code className="bg-muted px-1 rounded">META_APP_SECRET</code> no Vercel, ou
-                  use a configuração manual abaixo.
-                </div>
-              </div>
-            )}
-
-            <div className="relative my-3">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setEditando(true)}
-            >
-              Configuração manual (colar tokens)
-            </Button>
-          </div>
-        )}
-
-        {editando && (
-          <>
-            <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
-              <div className="font-medium text-foreground">Setup inicial</div>
-              <div>
-                1. Meta for Developers → seu app → WhatsApp → API Setup → cadastre o número
-              </div>
-              <div>
-                2. <strong>Phone Number ID</strong> aparece no card "From". Business Account ID logo
-                abaixo.
-              </div>
-              <div>
-                3. <strong>Access Token</strong>: botão "Generate a token" com permissão
-                whatsapp_business_messaging + whatsapp_business_management
-              </div>
-              <div>4. Aprove templates no WhatsApp Manager antes de enviar primeira mensagem.</div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Phone Number ID</Label>
-                <Input
-                  value={form.whatsapp_phone_number_id}
-                  onChange={(e) =>
-                    setForm({ ...form, whatsapp_phone_number_id: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Business Account ID</Label>
-                <Input
-                  value={form.whatsapp_business_account_id}
-                  onChange={(e) =>
-                    setForm({ ...form, whatsapp_business_account_id: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>Access Token</Label>
-                <Input
-                  type="password"
-                  value={form.whatsapp_access_token}
-                  onChange={(e) => setForm({ ...form, whatsapp_access_token: e.target.value })}
-                />
-              </div>
-            </div>
-
-            {conectar.error && (
-              <div className="rounded-md p-3 text-sm border bg-destructive/10 border-destructive/20 text-destructive">
-                {conectar.error.message}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button onClick={() => conectar.mutate(form)} disabled={conectar.isPending}>
-                {conectar.isPending ? "Salvando..." : "Conectar WhatsApp"}
-              </Button>
-              {conectado && (
-                <Button variant="ghost" onClick={() => setEditando(false)}>
-                  Cancelar
-                </Button>
-              )}
-            </div>
-          </>
-        )}
-
-        <div className="pt-2 border-t">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            URL do webhook WhatsApp
-          </div>
-          <div className="font-mono text-xs bg-muted p-2 rounded border">
-            {typeof window !== "undefined"
-              ? `${window.location.origin}/api/webhooks/whatsapp`
-              : "/api/webhooks/whatsapp"}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Configure no WhatsApp → Webhooks com verify_token ={" "}
-            <code className="bg-muted px-1 rounded">WHATSAPP_VERIFY_TOKEN</code> — subscribe em
-            messages + message_status.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function InfoField({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="font-mono text-xs truncate" title={value ?? ""}>
-        {value ?? "—"}
-      </div>
-    </div>
-  );
-}
 
 function AssetRow({
   label,

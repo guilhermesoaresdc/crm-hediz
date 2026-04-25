@@ -29,7 +29,7 @@ export function getMetaOAuthUrl(params: {
   redirectUri: string;
   state: string;
 }) {
-  const url = new URL("https://www.facebook.com/v19.0/dialog/oauth");
+  const url = new URL("https://www.facebook.com/v22.0/dialog/oauth");
   url.searchParams.set("client_id", params.appId);
   url.searchParams.set("redirect_uri", params.redirectUri);
   url.searchParams.set("state", params.state);

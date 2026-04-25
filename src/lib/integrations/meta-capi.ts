@@ -31,7 +31,7 @@ export class MetaConversionAPI {
   ) {}
 
   async sendEvent(event: CapiEventInput) {
-    const url = `https://graph.facebook.com/v19.0/${this.pixelId}/events`;
+    const url = `https://graph.facebook.com/v22.0/${this.pixelId}/events`;
     const body: Record<string, unknown> = {
       data: [
         {

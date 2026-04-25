@@ -9,7 +9,7 @@ export class WhatsAppCloudAPI {
   constructor(private config: WhatsappConfig) {}
 
   private get baseUrl() {
-    return `https://graph.facebook.com/v19.0/${this.config.phone_number_id}/messages`;
+    return `https://graph.facebook.com/v22.0/${this.config.phone_number_id}/messages`;
   }
 
   async sendTemplate(params: {
