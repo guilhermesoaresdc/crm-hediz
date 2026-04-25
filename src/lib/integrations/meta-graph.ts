@@ -1,6 +1,6 @@
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
-const GRAPH_BASE = "https://graph.facebook.com/v19.0";
+const GRAPH_BASE = "https://graph.facebook.com/v22.0";
 
 export async function metaGraphGet<T = unknown>(
   path: string,

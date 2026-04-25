@@ -97,7 +97,7 @@ export async function GET(req: Request) {
 
     const destino =
       intentCookie === "whatsapp"
-        ? "/integracoes/selecionar-whatsapp"
+        ? "/ferramentas-chat/canais"
         : "/integracoes/selecionar";
 
     const response = NextResponse.redirect(new URL(destino, origin));
